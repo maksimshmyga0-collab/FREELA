@@ -11,14 +11,15 @@ import {
   Lightbulb,
   FileText,
   TrendingUp,
-  Settings,
   User,
   Plus,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { MainNavSection, WorkSubTab, CreatorSubTab } from '../../types';
 
 export const MobileDrawer: React.FC = () => {
+  const { currentUser } = useAuth();
   const {
     isMobileMenuOpen,
     setIsMobileMenuOpen,
@@ -28,7 +29,6 @@ export const MobileDrawer: React.FC = () => {
     setWorkTab,
     creatorTab,
     setCreatorTab,
-    openSettings,
     openProfile,
     openCreateModal,
     kpi,
@@ -202,27 +202,17 @@ export const MobileDrawer: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer: Settings & Profile */}
-        <div className="p-3 border-t border-white/[0.06] space-y-1 bg-white/[0.01]">
-          <button
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              openSettings();
-            }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-400 hover:text-white hover:bg-white/[0.04] transition-colors"
-          >
-            <Settings size={15} />
-            <span>Настройки и бэкап</span>
-          </button>
+        {/* Footer: Profile */}
+        <div className="p-3 border-t border-white/[0.06] bg-white/[0.01]">
           <button
             onClick={() => {
               setIsMobileMenuOpen(false);
               openProfile();
             }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-400 hover:text-white hover:bg-white/[0.04] transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs text-slate-300 hover:text-white hover:bg-white/[0.04] transition-colors"
           >
-            <User size={15} />
-            <span>Профиль Александра</span>
+            <User size={15} className="text-slate-400" />
+            <span>Профиль {currentUser?.displayName ? `(${currentUser.displayName})` : ''}</span>
           </button>
         </div>
       </div>

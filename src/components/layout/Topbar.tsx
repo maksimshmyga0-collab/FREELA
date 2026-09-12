@@ -3,7 +3,6 @@ import {
   Search,
   Bell,
   Plus,
-  Settings,
   Menu,
   Check,
   FolderKanban,
@@ -15,7 +14,6 @@ import {
   Briefcase,
   Sparkles,
   TrendingUp,
-  Download,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
@@ -28,7 +26,6 @@ export const Topbar: React.FC = () => {
     setMainSection,
     setIsMobileMenuOpen,
     openSearch,
-    openSettings,
     openProfile,
     notifications,
     unreadNotificationsCount,
@@ -264,28 +261,6 @@ export const Topbar: React.FC = () => {
             </div>
           )}
         </div>
-
-        {/* Download Project ZIP */}
-        <a
-          id="download-project-zip-btn"
-          href="/freela-project.zip"
-          download="freela-project.zip"
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white rounded-xl border border-white/[0.06] hover:border-blue-500/30 text-xs font-medium transition-all min-h-[34px]"
-          title="Скачать полный ZIP проект"
-        >
-          <Download size={14} className="text-blue-400" />
-          <span className="hidden lg:inline">ZIP проект</span>
-        </a>
-
-        {/* Settings button */}
-        <button
-          id="settings-btn"
-          onClick={openSettings}
-          className="p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-colors min-w-[34px] min-h-[34px] flex items-center justify-center"
-          aria-label="Настройки"
-        >
-          <Settings size={17} />
-        </button>
 
         {/* User Profile Avatar */}
         <button

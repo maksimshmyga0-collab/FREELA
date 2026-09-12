@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Sparkles, Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle, Briefcase, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle, Briefcase, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { AuthScreenMode } from '../../types';
 
 export const AuthScreen: React.FC = () => {
-  const { login, register, resetPassword, loginAsDemo } = useAuth();
+  const { login, register, resetPassword } = useAuth();
 
   const [mode, setMode] = useState<AuthScreenMode>('login');
   const [email, setEmail] = useState('');
@@ -70,18 +70,6 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      await loginAsDemo();
-    } catch (err: any) {
-      setError(err?.message || 'Не удалось запустить демо-режим');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="min-h-screen w-screen bg-[#0A0C10] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background ambient lighting */}
@@ -90,16 +78,14 @@ export const AuthScreen: React.FC = () => {
       {/* Main Card */}
       <div className="relative w-full max-w-md bg-[#11141A] border border-white/[0.08] rounded-3xl p-6 sm:p-8 shadow-2xl z-10">
         {/* Brand Header */}
-        <div className="text-center mb-7">
-          <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] mb-3">
-            <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-blue-500 to-emerald-400 flex items-center justify-center text-slate-950">
-              <Sparkles size={12} className="stroke-[2.5]" />
+        <div className="text-center mb-7 flex flex-col items-center">
+          <div className="flex items-center gap-2 mb-3 select-none">
+            <div className="w-8 h-8 rounded-xl bg-white text-slate-950 font-black text-xs flex items-center justify-center tracking-tighter shadow-md">
+              FR
             </div>
-            <span className="text-xs font-black tracking-widest text-white uppercase">
+            <span className="text-lg font-extrabold tracking-tight text-white flex items-center gap-1">
               FREELA
-            </span>
-            <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.2 rounded-full border border-emerald-500/20">
-              SaaS v2.0
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
             </span>
           </div>
 
@@ -320,8 +306,8 @@ export const AuthScreen: React.FC = () => {
           </button>
         </form>
 
-        {/* Bottom Switch / Demo links */}
-        <div className="mt-6 pt-5 border-t border-white/[0.06] text-center space-y-3">
+        {/* Bottom Switch */}
+        <div className="mt-6 pt-5 border-t border-white/[0.06] text-center">
           {mode === 'forgot_password' ? (
             <button
               type="button"
@@ -330,24 +316,14 @@ export const AuthScreen: React.FC = () => {
                 setError(null);
                 setSuccessMsg(null);
               }}
-              className="text-xs text-slate-400 hover:text-white transition-colors"
+              className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
             >
               ← Вернуться ко входу
             </button>
           ) : (
-            <div className="flex flex-col items-center gap-2.5">
-              <span className="text-[11px] text-slate-500">
-                Каждый пользователь получает изолированное пространство
-              </span>
-              <button
-                type="button"
-                onClick={handleDemoLogin}
-                disabled={isSubmitting}
-                className="text-xs text-purple-400 hover:text-purple-300 font-medium transition-colors"
-              >
-                Быстрый вход в Демо-режим (для проверки интерфейса)
-              </button>
-            </div>
+            <span className="text-[11px] text-slate-500">
+              Каждый пользователь получает изолированное пространство
+            </span>
           )}
         </div>
       </div>
