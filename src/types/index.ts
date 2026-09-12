@@ -131,6 +131,30 @@ export interface ResultItem {
 export type UserPlan = 'free' | 'pro';
 export type UserStatus = 'active' | 'trial' | 'past_due';
 
+export interface DashboardWidgetConfig {
+  projects: boolean;      // 📁 Текущие проекты
+  todayTasks: boolean;    // ✅ Задачи на сегодня
+  monthIncome: boolean;   // 💰 Доход за месяц
+  pendingIncome: boolean; // ⏳ Ожидает оплаты
+  calendar: boolean;      // 📅 Календарь
+  currency: boolean;      // 💱 Курсы валют
+  ideas: boolean;         // 💡 Последние идеи
+  content: boolean;       // 📝 Контент
+  results: boolean;       // 📊 Результаты
+}
+
+export const DEFAULT_WIDGET_CONFIG: DashboardWidgetConfig = {
+  projects: true,
+  todayTasks: true,
+  monthIncome: true,
+  pendingIncome: true,
+  calendar: true,
+  currency: true,
+  ideas: true,
+  content: true,
+  results: true,
+};
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -145,6 +169,7 @@ export interface UserProfile {
   status: UserStatus;
   createdAt: string;
   updatedAt: string;
+  dashboardWidgets?: DashboardWidgetConfig;
   // SaaS preparation fields
   subscription?: {
     planId: string;
@@ -159,8 +184,41 @@ export interface UserProfile {
 
 export type AuthScreenMode = 'login' | 'register' | 'forgot_password';
 
+// Boards & Visual Canvas
+export interface Board {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BoardItemType = 'image' | 'text' | 'link';
+
+export interface BoardItem {
+  id: string;
+  userId: string;
+  boardId: string;
+  type: BoardItemType;
+  content: string; // text body or URL or image storage id / data URL
+  title?: string;
+  imageUrl?: string;
+  linkUrl?: string;
+  color?: string; // card accent / color
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Top level navigation
-export type MainNavSection = 'dashboard' | 'work' | 'finance' | 'creator';
+export type MainNavSection = 'dashboard' | 'work' | 'boards' | 'finance' | 'creator';
 export type WorkSubTab = 'projects' | 'clients' | 'tasks';
 export type CreatorSubTab = 'ideas' | 'content' | 'results';
 
@@ -168,6 +226,7 @@ export type CreatorSubTab = 'ideas' | 'content' | 'results';
 export type NavSection =
   | 'dashboard'
   | 'work'
+  | 'boards'
   | 'projects'
   | 'clients'
   | 'tasks'

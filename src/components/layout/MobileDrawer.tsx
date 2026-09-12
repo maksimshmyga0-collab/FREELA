@@ -13,6 +13,7 @@ import {
   TrendingUp,
   User,
   Plus,
+  LayoutGrid,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
@@ -32,6 +33,7 @@ export const MobileDrawer: React.FC = () => {
     openProfile,
     openCreateModal,
     kpi,
+    boards,
   } = useApp();
 
   if (!isMobileMenuOpen) return null;
@@ -180,6 +182,28 @@ export const MobileDrawer: React.FC = () => {
             >
               <TrendingUp size={15} className="text-emerald-400" />
               <span>Результаты</span>
+            </button>
+          </div>
+
+          {/* Section: Доски */}
+          <div>
+            <button
+              onClick={() => handleNav('boards')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-colors text-left ${
+                mainSection === 'boards'
+                  ? 'bg-white/[0.08] text-white font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]'
+              }`}
+            >
+              <span className="flex items-center gap-2.5">
+                <LayoutGrid size={15} className="text-indigo-400" />
+                <span>Доски</span>
+              </span>
+              {boards.length > 0 && (
+                <span className="text-[10px] bg-white/[0.06] px-2 py-0.5 rounded-full text-slate-300">
+                  {boards.length}
+                </span>
+              )}
             </button>
           </div>
 

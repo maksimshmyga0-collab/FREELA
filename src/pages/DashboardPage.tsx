@@ -18,11 +18,14 @@ import {
   Check,
   AlertTriangle,
   Send,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { formatMoney, statusColors } from '../utils/formatters';
 import { FinanceChart } from '../components/common/FinanceChart';
+import { CalendarWidget } from '../components/dashboard/CalendarWidget';
+import { CurrencyWidget } from '../components/dashboard/CurrencyWidget';
 
 export const DashboardPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -43,6 +46,8 @@ export const DashboardPage: React.FC = () => {
     openCreateModal,
     openEditModal,
     openCaseStudy,
+    widgetConfig,
+    setIsWidgetModalOpen,
   } = useApp();
 
   const userFirstName = currentUser?.displayName
@@ -80,12 +85,24 @@ export const DashboardPage: React.FC = () => {
             Привет, {userFirstName}!
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5 font-normal">
-            Работа. Деньги. Результаты.
+            Готов к новым результатам?
           </p>
         </div>
 
-        {/* Quick Actions Strip (Пункт 17) */}
+        {/* Quick Actions Strip & Widget Customization */}
         <div className="flex items-center flex-wrap gap-1.5 sm:gap-2">
+          <button
+            id="customize-widgets-btn"
+            onClick={() => setIsWidgetModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white text-xs font-medium rounded-xl border border-white/[0.08] hover:border-white/[0.15] transition-all min-h-[34px] cursor-pointer"
+            title="Настроить виджеты главной страницы"
+          >
+            <SlidersHorizontal size={13} className="text-blue-400" />
+            <span>Настроить виджеты</span>
+          </button>
+
+          <div className="h-4 w-px bg-white/[0.08] hidden sm:block mx-0.5" />
+
           <button
             onClick={() => openCreateModal('project')}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 text-xs font-medium rounded-xl border border-white/[0.08] transition-all min-h-[34px]"
@@ -124,50 +141,62 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Four Compact KPI Cards (Пункт 3) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* KPI 1: Доход */}
-        <div
-          onClick={() => setMainSection('finance')}
-          className="bg-[#11141A] p-4 rounded-2xl border border-white/[0.06] hover:border-white/[0.12] transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-slate-400">Доход</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <TrendingUp size={14} />
+      {/* 2. Compact KPI Cards (Пункт 3 & Настройка виджетов) */}
+      <div
+        className={`grid gap-3 sm:gap-4 ${
+          (widgetConfig.monthIncome ? 1 : 0) + (widgetConfig.pendingIncome ? 1 : 0) + 2 === 4
+            ? 'grid-cols-2 lg:grid-cols-4'
+            : (widgetConfig.monthIncome ? 1 : 0) + (widgetConfig.pendingIncome ? 1 : 0) + 2 === 3
+            ? 'grid-cols-1 sm:grid-cols-3'
+            : 'grid-cols-1 sm:grid-cols-2'
+        }`}
+      >
+        {/* KPI 1: Доход за месяц */}
+        {widgetConfig.monthIncome && (
+          <div
+            onClick={() => setMainSection('finance')}
+            className="bg-[#11141A] p-4 rounded-2xl border border-white/[0.06] hover:border-white/[0.12] transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-slate-400">Доход</span>
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <TrendingUp size={14} />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                {formatMoney(kpi.income)}
+              </div>
+              <div className="text-[10px] text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+                <ArrowUpRight size={12} />
+                Оплачено в сентябре
+              </div>
             </div>
           </div>
-          <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-bold text-white tracking-tight">
-              {formatMoney(kpi.income)}
-            </div>
-            <div className="text-[10px] text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
-              <ArrowUpRight size={12} />
-              Оплачено в сентябре
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* KPI 2: Ожидает оплаты */}
-        <div
-          onClick={() => setMainSection('finance')}
-          className="bg-[#11141A] p-4 rounded-2xl border border-white/[0.06] hover:border-white/[0.12] transition-all cursor-pointer group flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-slate-400">Ожидает оплаты</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Clock size={14} />
+        {widgetConfig.pendingIncome && (
+          <div
+            onClick={() => setMainSection('finance')}
+            className="bg-[#11141A] p-4 rounded-2xl border border-white/[0.06] hover:border-white/[0.12] transition-all cursor-pointer group flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-slate-400">Ожидает оплаты</span>
+              <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Clock size={14} />
+              </div>
+            </div>
+            <div className="mt-2.5">
+              <div className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                {formatMoney(kpi.waitingPayment)}
+              </div>
+              <div className="text-[10px] text-amber-400 font-medium flex items-center gap-1 mt-0.5">
+                2 счета к получению
+              </div>
             </div>
           </div>
-          <div className="mt-2.5">
-            <div className="text-lg sm:text-xl font-bold text-white tracking-tight">
-              {formatMoney(kpi.waitingPayment)}
-            </div>
-            <div className="text-[10px] text-amber-400 font-medium flex items-center gap-1 mt-0.5">
-              2 счета к получению
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* KPI 3: Проекты в работе */}
         <div
@@ -280,9 +309,17 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* 4. Main Work Panels: Текущие проекты + Задачи на сегодня */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
-        {/* Panel 1: Текущие проекты (Пункт 4) */}
-        <div className="bg-[#11141A] p-5 rounded-2xl border border-white/[0.06] flex flex-col h-full space-y-4">
+      {(widgetConfig.projects || widgetConfig.todayTasks) && (
+        <div
+          className={`grid gap-5 items-stretch ${
+            widgetConfig.projects && widgetConfig.todayTasks
+              ? 'grid-cols-1 lg:grid-cols-2'
+              : 'grid-cols-1'
+          }`}
+        >
+          {/* Panel 1: Текущие проекты (Пункт 4) */}
+          {widgetConfig.projects && (
+            <div className="bg-[#11141A] p-5 rounded-2xl border border-white/[0.06] flex flex-col h-full space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
@@ -392,8 +429,10 @@ export const DashboardPage: React.FC = () => {
             )}
           </div>
         </div>
+      )}
 
-        {/* Panel 2: Задачи на сегодня (Пункт 5) */}
+      {/* Panel 2: Задачи на сегодня (Пункт 5) */}
+      {widgetConfig.todayTasks && (
         <div className="bg-[#11141A] p-5 rounded-2xl border border-white/[0.06] flex flex-col h-full space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -491,7 +530,43 @@ export const DashboardPage: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
+      )}
+        </div>
+      )}
+
+      {/* 4.5. Widgets Row: Календарь & Курсы валют (Этап 1 & 2) */}
+      {(widgetConfig.calendar || widgetConfig.currency) && (
+        <div
+          className={`grid gap-5 items-stretch ${
+            widgetConfig.calendar && widgetConfig.currency
+              ? 'grid-cols-1 lg:grid-cols-12'
+              : 'grid-cols-1'
+          }`}
+        >
+          {widgetConfig.calendar && (
+            <div
+              className={`${
+                widgetConfig.currency
+                  ? 'lg:col-span-7 xl:col-span-8'
+                  : 'col-span-1'
+              } flex flex-col`}
+            >
+              <CalendarWidget />
+            </div>
+          )}
+          {widgetConfig.currency && (
+            <div
+              className={`${
+                widgetConfig.calendar
+                  ? 'lg:col-span-5 xl:col-span-4'
+                  : 'col-span-1'
+              } flex flex-col`}
+            >
+              <CurrencyWidget />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 5. Section: Финансы & Финансовая эффективность + FREELA Insights (Пункт 10 & 12) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -640,118 +715,134 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 6. Section: Продуктовая связка Результата & Раздел «Создавай» (Пункт 9, 25 & 8) */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm sm:text-base font-bold text-white tracking-tight flex items-center gap-2">
-              <Sparkles size={16} className="text-purple-400" />
-              Создавай и превращай активность в результат
-            </h2>
-            <p className="text-[11px] text-slate-400">
-              «Идея → Контент → Аудитория → Результат»
-            </p>
+      {/* 6. Section: Продуктовая связка Результата & Раздел «Создавай» (Пункт 9, 25, 8 & Настройка виджетов) */}
+      {(widgetConfig.ideas || widgetConfig.content || widgetConfig.results) && (
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-white tracking-tight flex items-center gap-2">
+                <Sparkles size={16} className="text-purple-400" />
+                Создавай и превращай активность в результат
+              </h2>
+              <p className="text-[11px] text-slate-400">
+                «Идея → Контент → Аудитория → Результат»
+              </p>
+            </div>
+            <button
+              onClick={() => setMainSection('creator')}
+              className="text-[11px] text-purple-400 hover:text-purple-300 font-medium"
+            >
+              В раздел «Создавай» →
+            </button>
           </div>
-          <button
-            onClick={() => setMainSection('creator')}
-            className="text-[11px] text-purple-400 hover:text-purple-300 font-medium"
+
+          <div
+            className={`grid gap-3.5 ${
+              [widgetConfig.ideas, widgetConfig.content, widgetConfig.results].filter(Boolean).length === 3
+                ? 'grid-cols-1 md:grid-cols-3'
+                : [widgetConfig.ideas, widgetConfig.content, widgetConfig.results].filter(Boolean).length === 2
+                ? 'grid-cols-1 md:grid-cols-2'
+                : 'grid-cols-1'
+            }`}
           >
-            В раздел «Создавай» →
-          </button>
+            {/* Card 1: 💡 Идеи */}
+            {widgetConfig.ideas && (
+              <div
+                onClick={() => {
+                  setMainSection('creator');
+                  setCreatorTab('ideas');
+                }}
+                className="bg-[#11141A] p-4 rounded-2xl border border-white/[0.06] hover:border-white/[0.12] transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-sm">
+                      💡
+                    </div>
+                    <span className="text-[10px] font-medium px-2 py-0.5 bg-white/[0.04] text-slate-300 rounded-full border border-white/[0.06]">
+                      {ideas.length} в банке
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-semibold text-white group-hover:text-amber-400 transition-colors">
+                    Банк идей
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    {ideas[0]?.title || 'Генерация тем для Reels, статей и лид-магнитов'}
+                  </p>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[11px] text-slate-400 group-hover:text-white transition-colors">
+                  <span>Открыть идеи</span>
+                  <ChevronRight size={13} />
+                </div>
+              </div>
+            )}
+
+            {/* Card 2: 📝 Контент */}
+            {widgetConfig.content && (
+              <div
+                onClick={() => {
+                  setMainSection('creator');
+                  setCreatorTab('content');
+                }}
+                className="bg-[#11141A] p-4 rounded-2xl border border-white/[0.06] hover:border-white/[0.12] transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-sm">
+                      📝
+                    </div>
+                    <span className="text-[10px] font-medium px-2 py-0.5 bg-white/[0.04] text-slate-300 rounded-full border border-white/[0.06]">
+                      {content.length} материалов
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-semibold text-white group-hover:text-indigo-400 transition-colors">
+                    Пайплайн контента
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    {content[0]?.title || 'Производство Reels, постов и экспертных статей'}
+                  </p>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[11px] text-slate-400 group-hover:text-white transition-colors">
+                  <span>Управление контентом</span>
+                  <ChevronRight size={13} />
+                </div>
+              </div>
+            )}
+
+            {/* Card 3: 📊 Результаты */}
+            {widgetConfig.results && (
+              <div
+                onClick={() => {
+                  setMainSection('creator');
+                  setCreatorTab('results');
+                }}
+                className="bg-[#11141A] p-4 rounded-2xl border border-white/[0.06] hover:border-white/[0.12] transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-sm">
+                      📊
+                    </div>
+                    <span className="text-[10px] font-medium px-2 py-0.5 bg-white/[0.04] text-slate-300 rounded-full border border-white/[0.06]">
+                      {results.length} метрик
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">
+                    Фактический результат
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    {results[0]?.title || 'Конверсия публикаций в заявки и оплаченные контракты'}
+                  </p>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[11px] text-slate-400 group-hover:text-white transition-colors">
+                  <span>Смотреть конверсию</span>
+                  <ChevronRight size={13} />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-          {/* Card 1: 💡 Идеи */}
-          <div
-            onClick={() => {
-              setMainSection('creator');
-              setCreatorTab('ideas');
-            }}
-            className="bg-[#11141A] p-4 rounded-2xl border border-white/[0.06] hover:border-white/[0.12] transition-all cursor-pointer group flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-sm">
-                  💡
-                </div>
-                <span className="text-[10px] font-medium px-2 py-0.5 bg-white/[0.04] text-slate-300 rounded-full border border-white/[0.06]">
-                  {ideas.length} в банке
-                </span>
-              </div>
-              <h3 className="text-sm font-semibold text-white group-hover:text-amber-400 transition-colors">
-                Банк идей
-              </h3>
-              <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                {ideas[0]?.title || 'Генерация тем для Reels, статей и лид-магнитов'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[11px] text-slate-400 group-hover:text-white transition-colors">
-              <span>Открыть идеи</span>
-              <ChevronRight size={13} />
-            </div>
-          </div>
-
-          {/* Card 2: 📝 Контент */}
-          <div
-            onClick={() => {
-              setMainSection('creator');
-              setCreatorTab('content');
-            }}
-            className="bg-[#11141A] p-4 rounded-2xl border border-white/[0.06] hover:border-white/[0.12] transition-all cursor-pointer group flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-sm">
-                  📝
-                </div>
-                <span className="text-[10px] font-medium px-2 py-0.5 bg-white/[0.04] text-slate-300 rounded-full border border-white/[0.06]">
-                  {content.length} материалов
-                </span>
-              </div>
-              <h3 className="text-sm font-semibold text-white group-hover:text-indigo-400 transition-colors">
-                Пайплайн контента
-              </h3>
-              <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                {content[0]?.title || 'Производство Reels, постов и экспертных статей'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[11px] text-slate-400 group-hover:text-white transition-colors">
-              <span>Управление контентом</span>
-              <ChevronRight size={13} />
-            </div>
-          </div>
-
-          {/* Card 3: 📊 Результаты */}
-          <div
-            onClick={() => {
-              setMainSection('creator');
-              setCreatorTab('results');
-            }}
-            className="bg-[#11141A] p-4 rounded-2xl border border-white/[0.06] hover:border-white/[0.12] transition-all cursor-pointer group flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-sm">
-                  📊
-                </div>
-                <span className="text-[10px] font-medium px-2 py-0.5 bg-white/[0.04] text-slate-300 rounded-full border border-white/[0.06]">
-                  {results.length} метрик
-                </span>
-              </div>
-              <h3 className="text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">
-                Фактический результат
-              </h3>
-              <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                {results[0]?.title || 'Конверсия публикаций в заявки и оплаченные контракты'}
-              </p>
-            </div>
-            <div className="mt-3 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[11px] text-slate-400 group-hover:text-white transition-colors">
-              <span>Смотреть конверсию</span>
-              <ChevronRight size={13} />
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

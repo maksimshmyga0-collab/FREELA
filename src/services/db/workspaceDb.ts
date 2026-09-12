@@ -7,6 +7,8 @@ import {
   ContentItem,
   ResultItem,
   UserProfile,
+  Board,
+  BoardItem,
 } from '../../types';
 
 export interface UserWorkspaceData {
@@ -17,6 +19,8 @@ export interface UserWorkspaceData {
   ideas: Idea[];
   content: ContentItem[];
   results: ResultItem[];
+  boards?: Board[];
+  boardItems?: BoardItem[];
 }
 
 export interface StoredUser {
@@ -159,6 +163,8 @@ class WorkspaceDatabase {
       ideas: [],
       content: [],
       results: [],
+      boards: [],
+      boardItems: [],
     };
 
     try {

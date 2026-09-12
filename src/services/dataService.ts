@@ -6,6 +6,8 @@ import {
   Idea,
   ContentItem,
   ResultItem,
+  Board,
+  BoardItem,
 } from '../types';
 import { initialClients, initialProjects, initialTasks, initialFinance, initialIdeas, initialContent, initialResults } from '../data/mockData';
 import { workspaceDb, UserWorkspaceData } from './db/workspaceDb';
@@ -20,6 +22,8 @@ let financeStore: FinanceRecord[] = [];
 let ideasStore: Idea[] = [];
 let contentStore: ContentItem[] = [];
 let resultsStore: ResultItem[] = [];
+let boardsStore: Board[] = [];
+let boardItemsStore: BoardItem[] = [];
 
 type ChangeListener = () => void;
 const listeners: Set<ChangeListener> = new Set();
@@ -46,6 +50,8 @@ function persistCurrentWorkspace() {
     ideas: ideasStore,
     content: contentStore,
     results: resultsStore,
+    boards: boardsStore,
+    boardItems: boardItemsStore,
   };
 
   workspaceDb.saveWorkspace(activeUserId, data).catch((err) => {
@@ -78,6 +84,8 @@ export const dataService = {
       ideasStore = [];
       contentStore = [];
       resultsStore = [];
+      boardsStore = [];
+      boardItemsStore = [];
       notify();
       return;
     }
@@ -91,6 +99,8 @@ export const dataService = {
     ideasStore = ws.ideas || [];
     contentStore = ws.content || [];
     resultsStore = ws.results || [];
+    boardsStore = ws.boards || [];
+    boardItemsStore = ws.boardItems || [];
     notify();
   },
 
@@ -577,6 +587,111 @@ ${tasksList}
     return JSON.stringify(exportPayload, null, 2);
   },
 
+  // BOARDS
+  boards: {
+    getAll(): Board[] {
+      return [...boardsStore];
+    },
+    getById(id: string): Board | undefined {
+      return boardsStore.find((b) => b.id === id);
+    },
+    create(data: { title: string; description?: string; color?: string; icon?: string }): Board {
+      const now = new Date().toISOString();
+      const newBoard: Board = {
+        id: 'board-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+        userId: activeUserId || '',
+        title: data.title.trim(),
+        description: data.description?.trim() || '',
+        color: data.color || '#3B82F6',
+        icon: data.icon || '🎨',
+        createdAt: now,
+        updatedAt: now,
+      };
+      boardsStore = [newBoard, ...boardsStore];
+      persistCurrentWorkspace();
+      notify();
+      return newBoard;
+    },
+    update(id: string, updates: Partial<Board>): Board | null {
+      const idx = boardsStore.findIndex((b) => b.id === id);
+      if (idx === -1) return null;
+      boardsStore[idx] = {
+        ...boardsStore[idx],
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      };
+      persistCurrentWorkspace();
+      notify();
+      return boardsStore[idx];
+    },
+    delete(id: string): boolean {
+      boardsStore = boardsStore.filter((b) => b.id !== id);
+      // Remove all items belonging to this board
+      boardItemsStore = boardItemsStore.filter((item) => item.boardId !== id);
+      persistCurrentWorkspace();
+      notify();
+      return true;
+    },
+  },
+
+  // BOARD ITEMS
+  boardItems: {
+    getAll(boardId?: string): BoardItem[] {
+      if (boardId) {
+        return boardItemsStore.filter((item) => item.boardId === boardId);
+      }
+      return [...boardItemsStore];
+    },
+    getById(id: string): BoardItem | undefined {
+      return boardItemsStore.find((item) => item.id === id);
+    },
+    create(data: Omit<BoardItem, 'id' | 'createdAt' | 'updatedAt' | 'userId'>): BoardItem {
+      const now = new Date().toISOString();
+      const newItem: BoardItem = {
+        ...data,
+        id: 'item-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+        userId: activeUserId || '',
+        createdAt: now,
+        updatedAt: now,
+      };
+      boardItemsStore = [...boardItemsStore, newItem];
+      persistCurrentWorkspace();
+      notify();
+      return newItem;
+    },
+    update(id: string, updates: Partial<BoardItem>): BoardItem | null {
+      const idx = boardItemsStore.findIndex((item) => item.id === id);
+      if (idx === -1) return null;
+      boardItemsStore[idx] = {
+        ...boardItemsStore[idx],
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      };
+      persistCurrentWorkspace();
+      notify();
+      return boardItemsStore[idx];
+    },
+    batchUpdate(itemsToUpdate: (Partial<BoardItem> & { id: string })[]): void {
+      const updateMap = new Map(itemsToUpdate.map((u) => [u.id, u]));
+      const now = new Date().toISOString();
+      boardItemsStore = boardItemsStore.map((item) => {
+        const u = updateMap.get(item.id);
+        if (u) {
+          return { ...item, ...u, updatedAt: now };
+        }
+        return item;
+      });
+      persistCurrentWorkspace();
+      notify();
+    },
+    delete(id: string): boolean {
+      boardItemsStore = boardItemsStore.filter((item) => item.id !== id);
+      persistCurrentWorkspace();
+      notify();
+      return true;
+    },
+  },
+
   // Import workspace from JSON
   importData(jsonData: string): boolean {
     try {
@@ -590,6 +705,8 @@ ${tasksList}
       ideasStore = Array.isArray(ws.ideas) ? ws.ideas : [];
       contentStore = Array.isArray(ws.content) ? ws.content : [];
       resultsStore = Array.isArray(ws.results) ? ws.results : [];
+      boardsStore = Array.isArray(ws.boards) ? ws.boards : [];
+      boardItemsStore = Array.isArray(ws.boardItems) ? ws.boardItems : [];
       persistCurrentWorkspace();
       notify();
       return true;
@@ -614,6 +731,8 @@ ${tasksList}
     ideasStore = [];
     contentStore = [];
     resultsStore = [];
+    boardsStore = [];
+    boardItemsStore = [];
     persistCurrentWorkspace();
     notify();
   },

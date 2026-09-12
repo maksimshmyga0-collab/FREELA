@@ -57,6 +57,7 @@ export const Topbar: React.FC = () => {
     { id: 'dashboard', label: 'Главная' },
     { id: 'work', label: 'Работа' },
     { id: 'creator', label: 'Создание' },
+    { id: 'boards', label: 'Доски' },
     { id: 'finance', label: 'Финансы' },
   ];
 

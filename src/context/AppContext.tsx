@@ -11,6 +11,10 @@ import {
   Idea,
   ContentItem,
   ResultItem,
+  DashboardWidgetConfig,
+  DEFAULT_WIDGET_CONFIG,
+  Board,
+  BoardItem,
 } from '../types';
 import { dataService, subscribeToDataService } from '../services/dataService';
 import { useAuth } from './AuthContext';
@@ -74,6 +78,19 @@ interface AppContextType {
   ideas: Idea[];
   content: ContentItem[];
   results: ResultItem[];
+  boards: Board[];
+  boardItems: BoardItem[];
+
+  // Boards Canvas State & Actions
+  activeBoardId: string | null;
+  setActiveBoardId: (id: string | null) => void;
+  createBoard: (data: { title: string; description?: string; color?: string; icon?: string }) => Board;
+  updateBoard: (id: string, data: Partial<Board>) => void;
+  deleteBoard: (id: string) => void;
+  createBoardItem: (data: Omit<BoardItem, 'id' | 'createdAt' | 'updatedAt' | 'userId'>) => BoardItem;
+  updateBoardItem: (id: string, data: Partial<BoardItem>) => void;
+  batchUpdateBoardItems: (items: (Partial<BoardItem> & { id: string })[]) => void;
+  deleteBoardItem: (id: string) => void;
 
   // Dynamic KPIs & Metrics
   kpi: {
@@ -118,12 +135,19 @@ interface AppContextType {
   deleteItem: (type: 'project' | 'client' | 'task' | 'finance' | 'idea' | 'content' | 'result', id: string) => void;
   saveItem: (type: 'project' | 'client' | 'task' | 'finance' | 'idea' | 'content' | 'result', data: any, id?: string) => void;
   resetDemoData: () => void;
+
+  // Dashboard Widget Configuration (Этап 2)
+  widgetConfig: DashboardWidgetConfig;
+  setWidgetVisible: (widgetId: keyof DashboardWidgetConfig, visible: boolean) => void;
+  resetWidgetConfig: () => void;
+  isWidgetModalOpen: boolean;
+  setIsWidgetModalOpen: (open: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, updateProfile } = useAuth();
 
   // Navigation State
   const [mainSection, setMainSectionState] = useState<MainNavSection>('dashboard');
@@ -139,6 +163,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [caseStudyProject, setCaseStudyProject] = useState<Project | null>(null);
+  const [isWidgetModalOpen, setIsWidgetModalOpen] = useState<boolean>(false);
+
+  // Dashboard Widget Visibility State (Isolated per user)
+  const [widgetConfig, setWidgetConfig] = useState<DashboardWidgetConfig>(() => {
+    if (currentUser?.dashboardWidgets) {
+      return { ...DEFAULT_WIDGET_CONFIG, ...currentUser.dashboardWidgets };
+    }
+    if (currentUser?.uid) {
+      try {
+        const cached = localStorage.getItem(`freela_widgets_${currentUser.uid}`);
+        if (cached) return { ...DEFAULT_WIDGET_CONFIG, ...JSON.parse(cached) };
+      } catch {}
+    }
+    return DEFAULT_WIDGET_CONFIG;
+  });
+
+  // Re-synchronize widgets on currentUser change (switch user / login / logout)
+  useEffect(() => {
+    if (!currentUser) {
+      setWidgetConfig(DEFAULT_WIDGET_CONFIG);
+      return;
+    }
+
+    let loaded: DashboardWidgetConfig = DEFAULT_WIDGET_CONFIG;
+    if (currentUser.dashboardWidgets) {
+      loaded = { ...DEFAULT_WIDGET_CONFIG, ...currentUser.dashboardWidgets };
+    } else {
+      try {
+        const cached = localStorage.getItem(`freela_widgets_${currentUser.uid}`);
+        if (cached) {
+          loaded = { ...DEFAULT_WIDGET_CONFIG, ...JSON.parse(cached) };
+        }
+      } catch {}
+    }
+    setWidgetConfig(loaded);
+  }, [currentUser?.uid, currentUser?.dashboardWidgets]);
+
+  const setWidgetVisible = (widgetId: keyof DashboardWidgetConfig, visible: boolean) => {
+    setWidgetConfig((prev) => {
+      const next = { ...prev, [widgetId]: visible };
+      if (currentUser?.uid) {
+        try {
+          localStorage.setItem(`freela_widgets_${currentUser.uid}`, JSON.stringify(next));
+        } catch {}
+        // Persist to user profile database in background
+        updateProfile({ dashboardWidgets: next }).catch((err) => {
+          console.warn('Failed to persist widget config to user profile:', err);
+        });
+      }
+      return next;
+    });
+  };
+
+  const resetWidgetConfig = () => {
+    setWidgetConfig(DEFAULT_WIDGET_CONFIG);
+    if (currentUser?.uid) {
+      try {
+        localStorage.setItem(`freela_widgets_${currentUser.uid}`, JSON.stringify(DEFAULT_WIDGET_CONFIG));
+      } catch {}
+      updateProfile({ dashboardWidgets: DEFAULT_WIDGET_CONFIG }).catch((err) => {
+        console.warn('Failed to reset widget config in user profile:', err);
+      });
+    }
+  };
 
   // Local synced states from dataService
   const [clients, setClients] = useState<Client[]>([]);
@@ -148,6 +236,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [content, setContent] = useState<ContentItem[]>([]);
   const [results, setResults] = useState<ResultItem[]>([]);
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [boardItems, setBoardItems] = useState<BoardItem[]>([]);
+  const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
 
   // CRUD Modal State
   const [activeModal, setActiveModal] = useState<AppContextType['activeModal']>(null);
@@ -170,6 +261,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIdeas(dataService.ideas.getAll());
         setContent(dataService.content.getAll());
         setResults(dataService.results.getAll());
+        setBoards(dataService.boards.getAll());
+        setBoardItems(dataService.boardItems.getAll());
+        setActiveBoardId(null);
 
         // Notifications tailored to user
         if (!currentUser) {
@@ -218,6 +312,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Backward-compatible activeSection mapping
   const activeSection: NavSection = useMemo(() => {
     if (mainSection === 'dashboard') return 'dashboard';
+    if (mainSection === 'boards') return 'boards';
     if (mainSection === 'finance') return 'finance';
     if (mainSection === 'work') return workTab;
     if (mainSection === 'creator') return creatorTab;
@@ -228,6 +323,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     switch (section) {
       case 'dashboard':
         setMainSectionState('dashboard');
+        break;
+      case 'boards':
+        setMainSectionState('boards');
         break;
       case 'work':
         setMainSectionState('work');
@@ -281,6 +379,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIdeas(dataService.ideas.getAll());
       setContent(dataService.content.getAll());
       setResults(dataService.results.getAll());
+      setBoards(dataService.boards.getAll());
+      setBoardItems(dataService.boardItems.getAll());
     });
     return unsubscribe;
   }, []);
@@ -585,6 +685,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return notifications.filter((n) => !n.read).length;
   }, [notifications]);
 
+  // Board actions
+  const createBoard = (data: { title: string; description?: string; color?: string; icon?: string }) => {
+    const newBoard = dataService.boards.create(data);
+    setBoards(dataService.boards.getAll());
+    setActiveBoardId(newBoard.id);
+    return newBoard;
+  };
+
+  const updateBoard = (id: string, data: Partial<Board>) => {
+    dataService.boards.update(id, data);
+    setBoards(dataService.boards.getAll());
+  };
+
+  const deleteBoard = (id: string) => {
+    dataService.boards.delete(id);
+    setBoards(dataService.boards.getAll());
+    setBoardItems(dataService.boardItems.getAll());
+    if (activeBoardId === id) {
+      setActiveBoardId(null);
+    }
+  };
+
+  const createBoardItem = (data: Omit<BoardItem, 'id' | 'createdAt' | 'updatedAt' | 'userId'>) => {
+    const item = dataService.boardItems.create(data);
+    setBoardItems(dataService.boardItems.getAll());
+    return item;
+  };
+
+  const updateBoardItem = (id: string, data: Partial<BoardItem>) => {
+    dataService.boardItems.update(id, data);
+    setBoardItems(dataService.boardItems.getAll());
+  };
+
+  const batchUpdateBoardItems = (items: (Partial<BoardItem> & { id: string })[]) => {
+    dataService.boardItems.batchUpdate(items);
+    setBoardItems(dataService.boardItems.getAll());
+  };
+
+  const deleteBoardItem = (id: string) => {
+    dataService.boardItems.delete(id);
+    setBoardItems(dataService.boardItems.getAll());
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -619,6 +762,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ideas,
         content,
         results,
+        boards,
+        boardItems,
+        activeBoardId,
+        setActiveBoardId,
+        createBoard,
+        updateBoard,
+        deleteBoard,
+        createBoardItem,
+        updateBoardItem,
+        batchUpdateBoardItems,
+        deleteBoardItem,
         kpi,
         financialEfficiency,
         nextSteps,
@@ -633,6 +787,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteItem,
         saveItem,
         resetDemoData,
+        widgetConfig,
+        setWidgetVisible,
+        resetWidgetConfig,
+        isWidgetModalOpen,
+        setIsWidgetModalOpen,
       }}
     >
       {children}
