@@ -20,10 +20,12 @@ import {
   Send,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { formatMoney, statusColors } from '../utils/formatters';
 import { FinanceChart } from '../components/common/FinanceChart';
 
 export const DashboardPage: React.FC = () => {
+  const { currentUser } = useAuth();
   const {
     kpi,
     projects,
@@ -42,6 +44,10 @@ export const DashboardPage: React.FC = () => {
     openEditModal,
     openCaseStudy,
   } = useApp();
+
+  const userFirstName = currentUser?.displayName
+    ? currentUser.displayName.split(' ')[0]
+    : 'Фрилансер';
 
   // Filter projects in active work
   const projectsInWork = projects.filter(
@@ -63,18 +69,18 @@ export const DashboardPage: React.FC = () => {
   const featuredHourlyRate =
     featuredEfficiencyProject && featuredEfficiencyProject.hoursSpent
       ? Math.round(featuredEfficiencyProject.cost / featuredEfficiencyProject.hoursSpent)
-      : 3750;
+      : currentUser?.hourlyRate || 3500;
 
   return (
     <div className="space-y-6 pb-12">
-      {/* 1. Greeting & Quick Actions Section (Пункт 3 & 17) */}
+      {/* 1. Greeting & Quick Actions Section */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-1">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            Привет, Александр!
+            Привет, {userFirstName}!
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5 font-normal">
-            Твой фриланс. Под контролем.
+            Работа. Деньги. Результаты.
           </p>
         </div>
 
@@ -274,9 +280,9 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* 4. Main Work Panels: Текущие проекты + Задачи на сегодня */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
         {/* Panel 1: Текущие проекты (Пункт 4) */}
-        <div className="bg-[#11141A] p-5 rounded-2xl border border-white/[0.06] flex flex-col justify-between space-y-4">
+        <div className="bg-[#11141A] p-5 rounded-2xl border border-white/[0.06] flex flex-col h-full space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
@@ -297,10 +303,23 @@ export const DashboardPage: React.FC = () => {
             </button>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 flex-1">
             {projectsInWork.length === 0 ? (
-              <div className="p-6 text-center text-slate-500 text-xs">
-                Нет активных проектов в работе
+              <div className="p-8 text-center rounded-xl bg-white/[0.01] border border-dashed border-white/[0.08] flex flex-col items-center justify-center h-full min-h-[200px]">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center mb-2">
+                  <Briefcase size={16} />
+                </div>
+                <div className="text-xs font-semibold text-slate-200">Пока здесь ничего нет</div>
+                <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
+                  Создайте первый проект, чтобы начать учет сроков, этапов и стоимости
+                </p>
+                <button
+                  onClick={() => openCreateModal('project')}
+                  className="mt-3 px-3 py-1.5 bg-white text-slate-950 text-xs font-bold rounded-xl hover:bg-slate-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Plus size={13} />
+                  Создать первый проект
+                </button>
               </div>
             ) : (
               projectsInWork.map((proj) => {
@@ -375,7 +394,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Panel 2: Задачи на сегодня (Пункт 5) */}
-        <div className="bg-[#11141A] p-5 rounded-2xl border border-white/[0.06] flex flex-col justify-between space-y-4">
+        <div className="bg-[#11141A] p-5 rounded-2xl border border-white/[0.06] flex flex-col h-full space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
@@ -396,10 +415,23 @@ export const DashboardPage: React.FC = () => {
             </button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1">
             {activeTasks.length === 0 ? (
-              <div className="p-6 text-center text-slate-500 text-xs">
-                Все задачи на сегодня выполнены
+              <div className="p-8 text-center rounded-xl bg-white/[0.01] border border-dashed border-white/[0.08] flex flex-col items-center justify-center h-full min-h-[200px]">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-2">
+                  <Check size={16} />
+                </div>
+                <div className="text-xs font-semibold text-slate-200">Пока здесь ничего нет</div>
+                <p className="text-[11px] text-slate-500 mt-1 max-w-xs">
+                  Все задачи выполнены или еще не созданы. Добавьте задачу в проект
+                </p>
+                <button
+                  onClick={() => openCreateModal('task')}
+                  className="mt-3 px-3 py-1.5 bg-white text-slate-950 text-xs font-bold rounded-xl hover:bg-slate-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Plus size={13} />
+                  Добавить задачу
+                </button>
               </div>
             ) : (
               activeTasks.map((task) => {
@@ -523,12 +555,22 @@ export const DashboardPage: React.FC = () => {
                 <div className="text-xs font-semibold text-white">
                   Финансовая эффективность (Эффективная ставка)
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
-                  {featuredEfficiencyProject.title}: {formatMoney(featuredEfficiencyProject.cost)} / {featuredEfficiencyProject.hoursSpent} ч ={' '}
-                  <span className="text-emerald-400 font-bold">
-                    {featuredHourlyRate.toLocaleString('ru-RU')} ₽ / час
-                  </span>
-                </div>
+                {featuredEfficiencyProject ? (
+                  <div className="text-[11px] text-slate-400 mt-0.5">
+                    {featuredEfficiencyProject.title}: {formatMoney(featuredEfficiencyProject.cost)} / {featuredEfficiencyProject.hoursSpent || 1} ч ={' '}
+                    <span className="text-emerald-400 font-bold">
+                      {featuredHourlyRate.toLocaleString('ru-RU')} ₽ / час
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-slate-400 mt-0.5">
+                    Базовая ставка:{' '}
+                    <span className="text-emerald-400 font-bold">
+                      {featuredHourlyRate.toLocaleString('ru-RU')} ₽ / час
+                    </span>
+                    . Учет фактической ставки начнется с завершением проектов.
+                  </div>
+                )}
               </div>
             </div>
             <div className="text-right text-[11px] text-slate-400 shrink-0">

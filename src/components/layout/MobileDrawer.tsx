@@ -143,28 +143,10 @@ export const MobileDrawer: React.FC = () => {
             </button>
           </div>
 
-          {/* Section 3: Финансы */}
+          {/* Section 3: Создание (Идеи, Контент, Результаты) */}
           <div className="space-y-1">
             <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Финансы
-            </div>
-            <button
-              onClick={() => handleNav('finance')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors text-left ${
-                mainSection === 'finance'
-                  ? 'bg-white/[0.08] text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]'
-              }`}
-            >
-              <Wallet size={16} className="text-amber-400" />
-              <span>Финансы и аналитика</span>
-            </button>
-          </div>
-
-          {/* Section 4: Создавай (Идеи, Контент, Результаты) */}
-          <div className="space-y-1">
-            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              Создавай
+              Создание
             </div>
             <button
               onClick={() => handleNav('creator', 'ideas')}
@@ -198,6 +180,24 @@ export const MobileDrawer: React.FC = () => {
             >
               <TrendingUp size={15} className="text-emerald-400" />
               <span>Результаты</span>
+            </button>
+          </div>
+
+          {/* Section 4: Финансы */}
+          <div className="space-y-1">
+            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Финансы
+            </div>
+            <button
+              onClick={() => handleNav('finance')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors text-left ${
+                mainSection === 'finance'
+                  ? 'bg-white/[0.08] text-white font-semibold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.03]'
+              }`}
+            >
+              <Wallet size={16} className="text-amber-400" />
+              <span>Финансы и аналитика</span>
             </button>
           </div>
         </div>

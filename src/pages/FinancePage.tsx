@@ -169,8 +169,26 @@ export const FinancePage: React.FC = () => {
 
         {/* Transactions List */}
         <div className="bg-[#11141A] rounded-2xl border border-white/[0.06] divide-y divide-white/[0.04] overflow-hidden">
-          {filteredFinance.map((record) => {
-            const isIncome = record.type === 'income';
+          {filteredFinance.length === 0 ? (
+            <div className="p-12 text-center text-slate-400">
+              <div className="w-12 h-12 rounded-xl bg-white/[0.03] text-emerald-400 flex items-center justify-center mx-auto mb-3">
+                <Wallet size={22} />
+              </div>
+              <div className="text-sm font-bold text-white">Пока здесь ничего нет</div>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto font-normal">
+                Зафиксируйте первую операцию: доход по проекту или регулярные расходы
+              </p>
+              <button
+                onClick={() => openCreateModal('finance')}
+                className="mt-4 px-4 py-2 bg-white text-slate-950 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Plus size={14} />
+                Добавить операцию
+              </button>
+            </div>
+          ) : (
+            filteredFinance.map((record) => {
+              const isIncome = record.type === 'income';
             const statusConfig = statusColors[record.status] || {
               bg: 'bg-white/[0.04]',
               text: 'text-slate-400',
@@ -233,9 +251,10 @@ export const FinancePage: React.FC = () => {
                 </div>
               </div>
             );
-          })}
-        </div>
+          })
+        )}
       </div>
     </div>
+  </div>
   );
 };

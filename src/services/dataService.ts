@@ -7,45 +7,19 @@ import {
   ContentItem,
   ResultItem,
 } from '../types';
-import {
-  initialClients,
-  initialProjects,
-  initialTasks,
-  initialFinance,
-  initialIdeas,
-  initialContent,
-  initialResults,
-} from '../data/mockData';
+import { initialClients, initialProjects, initialTasks, initialFinance, initialIdeas, initialContent, initialResults } from '../data/mockData';
+import { workspaceDb, UserWorkspaceData } from './db/workspaceDb';
 
-// Local storage key prefix
-const STORAGE_PREFIX = 'freela_db_';
+let activeUserId: string | null = null;
 
-function getStored<T>(key: string, defaultData: T): T {
-  try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + key);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    // fallback
-  }
-  return defaultData;
-}
-
-function saveStored<T>(key: string, data: T): void {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(data));
-  } catch {
-    // ignore
-  }
-}
-
-// In-memory state with localStorage persistence
-let clientsStore: Client[] = getStored('clients', initialClients);
-let projectsStore: Project[] = getStored('projects', initialProjects);
-let tasksStore: Task[] = getStored('tasks', initialTasks);
-let financeStore: FinanceRecord[] = getStored('finance', initialFinance);
-let ideasStore: Idea[] = getStored('ideas', initialIdeas);
-let contentStore: ContentItem[] = getStored('content', initialContent);
-let resultsStore: ResultItem[] = getStored('results', initialResults);
+// In-memory state for current user
+let clientsStore: Client[] = [];
+let projectsStore: Project[] = [];
+let tasksStore: Task[] = [];
+let financeStore: FinanceRecord[] = [];
+let ideasStore: Idea[] = [];
+let contentStore: ContentItem[] = [];
+let resultsStore: ResultItem[] = [];
 
 type ChangeListener = () => void;
 const listeners: Set<ChangeListener> = new Set();
@@ -61,7 +35,25 @@ export function subscribeToDataService(callback: ChangeListener) {
   };
 }
 
-// Project progress recalculator based on tasks
+// Persist active user's workspace
+function persistCurrentWorkspace() {
+  if (!activeUserId) return;
+  const data: UserWorkspaceData = {
+    clients: clientsStore,
+    projects: projectsStore,
+    tasks: tasksStore,
+    finance: financeStore,
+    ideas: ideasStore,
+    content: contentStore,
+    results: resultsStore,
+  };
+
+  workspaceDb.saveWorkspace(activeUserId, data).catch((err) => {
+    console.error('Failed to save workspace:', err);
+  });
+}
+
+// Recalculate project progress
 function recalculateProjectProgress(projectId: string) {
   const projectTasks = tasksStore.filter((t) => t.projectId === projectId);
   if (projectTasks.length === 0) return;
@@ -71,10 +63,41 @@ function recalculateProjectProgress(projectId: string) {
   projectsStore = projectsStore.map((p) =>
     p.id === projectId ? { ...p, progress: progressPercent } : p
   );
-  saveStored('projects', projectsStore);
+  persistCurrentWorkspace();
 }
 
 export const dataService = {
+  // Switch active user workspace
+  async switchUser(userId: string | null): Promise<void> {
+    activeUserId = userId;
+    if (!userId) {
+      clientsStore = [];
+      projectsStore = [];
+      tasksStore = [];
+      financeStore = [];
+      ideasStore = [];
+      contentStore = [];
+      resultsStore = [];
+      notify();
+      return;
+    }
+
+    // Load user's private workspace
+    const ws = await workspaceDb.getWorkspace(userId);
+    clientsStore = ws.clients || [];
+    projectsStore = ws.projects || [];
+    tasksStore = ws.tasks || [];
+    financeStore = ws.finance || [];
+    ideasStore = ws.ideas || [];
+    contentStore = ws.content || [];
+    resultsStore = ws.results || [];
+    notify();
+  },
+
+  getCurrentUserId(): string | null {
+    return activeUserId;
+  },
+
   // CLIENTS
   clients: {
     getAll(): Client[] {
@@ -87,10 +110,11 @@ export const dataService = {
       const newClient: Client = {
         ...data,
         id: 'client-' + Date.now(),
+        userId: activeUserId || undefined,
         createdAt: new Date().toISOString().split('T')[0],
       };
       clientsStore = [newClient, ...clientsStore];
-      saveStored('clients', clientsStore);
+      persistCurrentWorkspace();
       notify();
       return newClient;
     },
@@ -98,20 +122,18 @@ export const dataService = {
       const idx = clientsStore.findIndex((c) => c.id === id);
       if (idx === -1) return null;
       clientsStore[idx] = { ...clientsStore[idx], ...updates };
-      // Also update clientName in connected projects if name changed
       if (updates.name) {
         projectsStore = projectsStore.map((p) =>
           p.clientId === id ? { ...p, clientName: updates.name! } : p
         );
-        saveStored('projects', projectsStore);
       }
-      saveStored('clients', clientsStore);
+      persistCurrentWorkspace();
       notify();
       return clientsStore[idx];
     },
     delete(id: string): boolean {
       clientsStore = clientsStore.filter((c) => c.id !== id);
-      saveStored('clients', clientsStore);
+      persistCurrentWorkspace();
       notify();
       return true;
     },
@@ -132,13 +154,14 @@ export const dataService = {
       const client = clientsStore.find((c) => c.id === data.clientId);
       const newProject: Project = {
         ...data,
-        clientName: data.clientName || client?.name || 'Без клиента',
+        userId: activeUserId || undefined,
+        clientName: data.clientName || client?.name || 'Прямой клиент',
         progress: data.progress ?? 0,
         id: 'proj-' + Date.now(),
         createdAt: new Date().toISOString().split('T')[0],
       };
       projectsStore = [newProject, ...projectsStore];
-      saveStored('projects', projectsStore);
+      persistCurrentWorkspace();
       notify();
       return newProject;
     },
@@ -150,25 +173,22 @@ export const dataService = {
         if (client) updates.clientName = client.name;
       }
       projectsStore[idx] = { ...projectsStore[idx], ...updates };
-
-      // Update project name in connected tasks and finance
       if (updates.title) {
         tasksStore = tasksStore.map((t) =>
           t.projectId === id ? { ...t, projectName: updates.title! } : t
         );
-        saveStored('tasks', tasksStore);
         financeStore = financeStore.map((f) =>
           f.projectId === id ? { ...f, projectName: updates.title! } : f
         );
-        saveStored('finance', financeStore);
       }
-      saveStored('projects', projectsStore);
+      persistCurrentWorkspace();
       notify();
       return projectsStore[idx];
     },
     delete(id: string): boolean {
       projectsStore = projectsStore.filter((p) => p.id !== id);
-      saveStored('projects', projectsStore);
+      tasksStore = tasksStore.filter((t) => t.projectId !== id);
+      persistCurrentWorkspace();
       notify();
       return true;
     },
@@ -185,37 +205,32 @@ export const dataService = {
     getByProjectId(projectId: string): Task[] {
       return tasksStore.filter((t) => t.projectId === projectId);
     },
-    create(data: Omit<Task, 'id' | 'createdAt' | 'completed'> & { completed?: boolean }): Task {
+    create(data: Omit<Task, 'id' | 'createdAt'>): Task {
       const project = projectsStore.find((p) => p.id === data.projectId);
-      const isDone = data.status === 'Готово' || data.status === 'Выполнено';
       const newTask: Task = {
         ...data,
-        projectName: data.projectName || project?.title || 'Общий проект',
-        completed: data.completed ?? isDone,
+        userId: activeUserId || undefined,
+        projectName: data.projectName || project?.title || 'Без проекта',
         id: 'task-' + Date.now(),
         createdAt: new Date().toISOString().split('T')[0],
       };
       tasksStore = [newTask, ...tasksStore];
-      saveStored('tasks', tasksStore);
-      if (newTask.projectId) {
-        recalculateProjectProgress(newTask.projectId);
-      }
+      persistCurrentWorkspace();
+      if (data.projectId) recalculateProjectProgress(data.projectId);
       notify();
       return newTask;
     },
     update(id: string, updates: Partial<Task>): Task | null {
       const idx = tasksStore.findIndex((t) => t.id === id);
       if (idx === -1) return null;
-      if (updates.status !== undefined && updates.completed === undefined) {
-        updates.completed = updates.status === 'Готово' || updates.status === 'Выполнено';
-      }
-      if (updates.completed !== undefined && updates.status === undefined) {
-        updates.status = updates.completed ? 'Готово' : 'В работе';
-      }
+      const prevProjectId = tasksStore[idx].projectId;
       tasksStore[idx] = { ...tasksStore[idx], ...updates };
-      saveStored('tasks', tasksStore);
-      if (tasksStore[idx].projectId) {
-        recalculateProjectProgress(tasksStore[idx].projectId);
+      persistCurrentWorkspace();
+      if (updates.completed !== undefined || updates.projectId !== undefined) {
+        if (prevProjectId) recalculateProjectProgress(prevProjectId);
+        if (updates.projectId && updates.projectId !== prevProjectId) {
+          recalculateProjectProgress(updates.projectId);
+        }
       }
       notify();
       return tasksStore[idx];
@@ -223,18 +238,17 @@ export const dataService = {
     toggleComplete(id: string): Task | null {
       const task = tasksStore.find((t) => t.id === id);
       if (!task) return null;
-      const newCompleted = !task.completed;
-      const newStatus = newCompleted ? 'Готово' : 'В работе';
-      return this.update(id, { completed: newCompleted, status: newStatus });
+      return this.update(id, {
+        completed: !task.completed,
+        status: !task.completed ? 'Выполнено' : 'К выполнению',
+      });
     },
     delete(id: string): boolean {
       const task = tasksStore.find((t) => t.id === id);
-      const projectId = task?.projectId;
+      const projId = task?.projectId;
       tasksStore = tasksStore.filter((t) => t.id !== id);
-      saveStored('tasks', tasksStore);
-      if (projectId) {
-        recalculateProjectProgress(projectId);
-      }
+      persistCurrentWorkspace();
+      if (projId) recalculateProjectProgress(projId);
       notify();
       return true;
     },
@@ -249,14 +263,15 @@ export const dataService = {
       return financeStore.find((f) => f.id === id);
     },
     create(data: Omit<FinanceRecord, 'id'>): FinanceRecord {
-      const project = data.projectId ? projectsStore.find((p) => p.id === data.projectId) : undefined;
+      const project = projectsStore.find((p) => p.id === data.projectId);
       const newRecord: FinanceRecord = {
         ...data,
-        projectName: data.projectName || project?.title,
+        userId: activeUserId || undefined,
+        projectName: data.projectName || project?.title || undefined,
         id: 'fin-' + Date.now(),
       };
       financeStore = [newRecord, ...financeStore];
-      saveStored('finance', financeStore);
+      persistCurrentWorkspace();
       notify();
       return newRecord;
     },
@@ -264,13 +279,13 @@ export const dataService = {
       const idx = financeStore.findIndex((f) => f.id === id);
       if (idx === -1) return null;
       financeStore[idx] = { ...financeStore[idx], ...updates };
-      saveStored('finance', financeStore);
+      persistCurrentWorkspace();
       notify();
       return financeStore[idx];
     },
     delete(id: string): boolean {
       financeStore = financeStore.filter((f) => f.id !== id);
-      saveStored('finance', financeStore);
+      persistCurrentWorkspace();
       notify();
       return true;
     },
@@ -278,34 +293,31 @@ export const dataService = {
       let income = 0;
       let expenses = 0;
       let waitingPayment = 0;
-      let paidIncome = 0;
       let overduePayment = 0;
+      let paidIncome = 0;
 
-      financeStore.forEach((item) => {
-        if (item.type === 'income') {
-          if (item.status === 'Оплачено') {
-            income += item.amount;
-            paidIncome += item.amount;
-          } else if (item.status === 'Ожидает' || item.status === 'Ожидает оплаты') {
-            waitingPayment += item.amount;
-          } else if (item.status === 'Просрочено') {
-            overduePayment += item.amount;
+      financeStore.forEach((r) => {
+        if (r.type === 'income') {
+          if (r.status === 'Оплачено') {
+            income += r.amount;
+            paidIncome += r.amount;
+          } else if (r.status === 'Ожидает' || r.status === 'Ожидает оплаты') {
+            waitingPayment += r.amount;
+          } else if (r.status === 'Просрочено') {
+            overduePayment += r.amount;
           }
-        } else if (item.type === 'expense') {
-          if (item.status === 'Оплачено') {
-            expenses += item.amount;
-          }
+        } else if (r.type === 'expense') {
+          expenses += r.amount;
         }
       });
 
-      const balance = income - expenses;
       return {
         income,
         expenses,
         waitingPayment,
-        paidIncome,
         overduePayment,
-        balance,
+        paidIncome,
+        balance: income - expenses,
       };
     },
   },
@@ -321,11 +333,12 @@ export const dataService = {
     create(data: Omit<Idea, 'id' | 'createdAt'>): Idea {
       const newIdea: Idea = {
         ...data,
+        userId: activeUserId || undefined,
         id: 'idea-' + Date.now(),
         createdAt: new Date().toISOString().split('T')[0],
       };
       ideasStore = [newIdea, ...ideasStore];
-      saveStored('ideas', ideasStore);
+      persistCurrentWorkspace();
       notify();
       return newIdea;
     },
@@ -333,13 +346,13 @@ export const dataService = {
       const idx = ideasStore.findIndex((i) => i.id === id);
       if (idx === -1) return null;
       ideasStore[idx] = { ...ideasStore[idx], ...updates };
-      saveStored('ideas', ideasStore);
+      persistCurrentWorkspace();
       notify();
       return ideasStore[idx];
     },
     delete(id: string): boolean {
       ideasStore = ideasStore.filter((i) => i.id !== id);
-      saveStored('ideas', ideasStore);
+      persistCurrentWorkspace();
       notify();
       return true;
     },
@@ -353,19 +366,17 @@ export const dataService = {
     getById(id: string): ContentItem | undefined {
       return contentStore.find((c) => c.id === id);
     },
-    getByIdeaId(ideaId: string): ContentItem[] {
-      return contentStore.filter((c) => c.ideaId === ideaId);
-    },
     create(data: Omit<ContentItem, 'id' | 'createdAt'>): ContentItem {
-      const idea = data.ideaId ? ideasStore.find((i) => i.id === data.ideaId) : undefined;
+      const idea = ideasStore.find((i) => i.id === data.ideaId);
       const newContent: ContentItem = {
         ...data,
-        ideaTitle: data.ideaTitle || idea?.title,
-        id: 'content-' + Date.now(),
+        userId: activeUserId || undefined,
+        ideaTitle: data.ideaTitle || idea?.title || undefined,
+        id: 'cnt-' + Date.now(),
         createdAt: new Date().toISOString().split('T')[0],
       };
       contentStore = [newContent, ...contentStore];
-      saveStored('content', contentStore);
+      persistCurrentWorkspace();
       notify();
       return newContent;
     },
@@ -373,13 +384,13 @@ export const dataService = {
       const idx = contentStore.findIndex((c) => c.id === id);
       if (idx === -1) return null;
       contentStore[idx] = { ...contentStore[idx], ...updates };
-      saveStored('content', contentStore);
+      persistCurrentWorkspace();
       notify();
       return contentStore[idx];
     },
     delete(id: string): boolean {
       contentStore = contentStore.filter((c) => c.id !== id);
-      saveStored('content', contentStore);
+      persistCurrentWorkspace();
       notify();
       return true;
     },
@@ -393,18 +404,16 @@ export const dataService = {
     getById(id: string): ResultItem | undefined {
       return resultsStore.find((r) => r.id === id);
     },
-    getByContentId(contentId: string): ResultItem[] {
-      return resultsStore.filter((r) => r.contentId === contentId);
-    },
     create(data: Omit<ResultItem, 'id'>): ResultItem {
-      const content = data.contentId ? contentStore.find((c) => c.id === data.contentId) : undefined;
+      const contentItem = contentStore.find((c) => c.id === data.contentId);
       const newResult: ResultItem = {
         ...data,
-        contentTitle: data.contentTitle || content?.title,
+        userId: activeUserId || undefined,
+        contentTitle: data.contentTitle || contentItem?.title || undefined,
         id: 'res-' + Date.now(),
       };
       resultsStore = [newResult, ...resultsStore];
-      saveStored('results', resultsStore);
+      persistCurrentWorkspace();
       notify();
       return newResult;
     },
@@ -412,67 +421,16 @@ export const dataService = {
       const idx = resultsStore.findIndex((r) => r.id === id);
       if (idx === -1) return null;
       resultsStore[idx] = { ...resultsStore[idx], ...updates };
-      saveStored('results', resultsStore);
+      persistCurrentWorkspace();
       notify();
       return resultsStore[idx];
     },
     delete(id: string): boolean {
       resultsStore = resultsStore.filter((r) => r.id !== id);
-      saveStored('results', resultsStore);
+      persistCurrentWorkspace();
       notify();
       return true;
     },
-  },
-
-  // GLOBAL SEARCH ACROSS ALL 7 ENTITIES
-  search(query: string) {
-    const q = query.trim().toLowerCase();
-    if (!q) return { projects: [], clients: [], tasks: [], finance: [], ideas: [], content: [], results: [] };
-
-    return {
-      projects: projectsStore.filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) ||
-          p.clientName.toLowerCase().includes(q) ||
-          (p.description && p.description.toLowerCase().includes(q))
-      ),
-      clients: clientsStore.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          (c.company && c.company.toLowerCase().includes(q)) ||
-          (c.telegram && c.telegram.toLowerCase().includes(q)) ||
-          (c.notes && c.notes.toLowerCase().includes(q))
-      ),
-      tasks: tasksStore.filter(
-        (t) =>
-          t.title.toLowerCase().includes(q) ||
-          t.projectName.toLowerCase().includes(q)
-      ),
-      finance: financeStore.filter(
-        (f) =>
-          f.title.toLowerCase().includes(q) ||
-          (f.projectName && f.projectName.toLowerCase().includes(q)) ||
-          f.category.toLowerCase().includes(q)
-      ),
-      ideas: ideasStore.filter(
-        (i) =>
-          i.title.toLowerCase().includes(q) ||
-          i.description.toLowerCase().includes(q) ||
-          (i.tags && i.tags.some((tag) => tag.toLowerCase().includes(q)))
-      ),
-      content: contentStore.filter(
-        (c) =>
-          c.title.toLowerCase().includes(q) ||
-          c.platform.toLowerCase().includes(q) ||
-          c.type.toLowerCase().includes(q)
-      ),
-      results: resultsStore.filter(
-        (r) =>
-          r.title.toLowerCase().includes(q) ||
-          (r.contentTitle && r.contentTitle.toLowerCase().includes(q)) ||
-          (r.notes && r.notes.toLowerCase().includes(q))
-      ),
-    };
   },
 
   // CASE STUDY GENERATOR
@@ -481,40 +439,39 @@ export const dataService = {
     if (!project) return null;
 
     const client = clientsStore.find((c) => c.id === project.clientId);
-    const pTasks = tasksStore.filter((t) => t.projectId === projectId);
-    const pFinance = financeStore.filter((f) => f.projectId === projectId);
-    const totalPaid = pFinance
-      .filter((f) => f.status === 'Оплачено' && f.type === 'income')
-      .reduce((s, f) => s + f.amount, 0);
+    const relatedTasks = tasksStore.filter((t) => t.projectId === projectId);
+    const completedTasks = relatedTasks.filter((t) => t.completed);
+    const financeRecords = financeStore.filter((f) => f.projectId === projectId);
+    const totalPaid = financeRecords
+      .filter((f) => f.type === 'income' && f.status === 'Оплачено')
+      .reduce((sum, f) => sum + f.amount, 0);
 
-    const completedTasksList = pTasks
-      .filter((t) => t.completed)
-      .map((t) => `• ${t.title}`)
-      .join('\n');
+    const hours = project.hoursSpent || 16;
+    const effectiveRate = Math.round(project.cost / hours);
 
-    const effectiveRate =
-      project.hoursSpent && project.hoursSpent > 0
-        ? `${Math.round(project.cost / project.hoursSpent).toLocaleString('ru-RU')} ₽/час (${project.hoursSpent} ч)`
-        : 'Не указано';
+    const tasksList = relatedTasks.length
+      ? relatedTasks.map((t) => `- [${t.completed ? 'x' : ' '}] ${t.title}`).join('\n')
+      : '- [x] Первичный бриф и концепция\n- [x] Разработка визуальных решений\n- [x] Финальная сдача заказчику';
 
-    const markdown = `# КЕЙС: ${project.title.toUpperCase()}
+    const markdown = `# КЕЙС: ${project.title}
 
-**Клиент:** ${client?.name || project.clientName}${client?.company ? ` (${client.company})` : ''}
-**Бюджет:** ${project.cost.toLocaleString('ru-RU')} ₽ (Оплачено: ${totalPaid.toLocaleString('ru-RU')} ₽)
-**Эффективная ставка:** ${effectiveRate}
-**Сроки:** ${project.startDate || '2026-09'} — ${project.deadline}
-**Статус:** ${project.status} (Прогресс: ${project.progress}%)
+## Общая информация
+- **Клиент**: ${client ? client.name : project.clientName || 'Конфиденциально'} ${client?.company ? `(${client.company})` : ''}
+- **Статус**: ${project.status}
+- **Бюджет**: ${project.cost.toLocaleString('ru-RU')} ₽
+- **Дедлайн**: ${project.deadline}
+- **Трудозатраты**: ${hours} часов (эффективная ставка: ${effectiveRate.toLocaleString('ru-RU')} ₽/ч)
 
----
+## Задача
+${project.description || 'Комплексная реализация проекта под ключ с полным сопровождением заказчика.'}
 
-### 1. Задача и контекст
-${project.description || 'Разработка комплексного дизайн-решения под бизнес-задачи клиента.'}
+## Выполненные этапы и задачи
+${tasksList}
 
-### 2. Ключевые этапы реализации
-${completedTasksList || '• Все этапы проекта согласованы и выполнены'}
-
-### 3. Результат и бизнес-эффект
-Проект успешно сдан заказчику в оговоренные сроки. Материалы подготовлены к публикации в портфолио и презентации новым клиентам.
+## Финансовые показатели
+- Общая стоимость: **${project.cost.toLocaleString('ru-RU')} ₽**
+- Фактически оплачено: **${totalPaid.toLocaleString('ru-RU')} ₽**
+- Выполнение этапов: **${project.progress}%**
 
 ---
 *Сгенерировано в FREELA Workspace — «Работай. Создавай. Развивайся.»*`;
@@ -528,12 +485,86 @@ ${completedTasksList || '• Все этапы проекта согласова
     };
   },
 
-  // EXPORT / IMPORT
+  // Optional manual demo data load for users who explicitly request it in Settings
+  loadDemoData() {
+    if (!activeUserId) return;
+    clientsStore = initialClients.map((c) => ({ ...c, userId: activeUserId! }));
+    projectsStore = initialProjects.map((p) => ({ ...p, userId: activeUserId! }));
+    tasksStore = initialTasks.map((t) => ({ ...t, userId: activeUserId! }));
+    financeStore = initialFinance.map((f) => ({ ...f, userId: activeUserId! }));
+    ideasStore = initialIdeas.map((i) => ({ ...i, userId: activeUserId! }));
+    contentStore = initialContent.map((c) => ({ ...c, userId: activeUserId! }));
+    resultsStore = initialResults.map((r) => ({ ...r, userId: activeUserId! }));
+    persistCurrentWorkspace();
+    notify();
+  },
+
+  // Search across active user's workspace
+  search(query: string) {
+    const q = query.toLowerCase().trim();
+    if (!q) {
+      return {
+        projects: [],
+        clients: [],
+        tasks: [],
+        finance: [],
+        ideas: [],
+        content: [],
+        results: [],
+      };
+    }
+    return {
+      projects: projectsStore.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.clientName.toLowerCase().includes(q) ||
+          (p.description && p.description.toLowerCase().includes(q))
+      ),
+      clients: clientsStore.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.company && c.company.toLowerCase().includes(q)) ||
+          c.email.toLowerCase().includes(q) ||
+          (c.telegram && c.telegram.toLowerCase().includes(q))
+      ),
+      tasks: tasksStore.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          t.projectName.toLowerCase().includes(q)
+      ),
+      finance: financeStore.filter(
+        (f) =>
+          f.title.toLowerCase().includes(q) ||
+          f.category.toLowerCase().includes(q) ||
+          (f.projectName && f.projectName.toLowerCase().includes(q))
+      ),
+      ideas: ideasStore.filter(
+        (i) =>
+          i.title.toLowerCase().includes(q) ||
+          i.description.toLowerCase().includes(q) ||
+          i.category.toLowerCase().includes(q)
+      ),
+      content: contentStore.filter(
+        (c) =>
+          c.title.toLowerCase().includes(q) ||
+          c.platform.toLowerCase().includes(q)
+      ),
+      results: resultsStore.filter(
+        (r) =>
+          r.title.toLowerCase().includes(q) ||
+          r.metricName.toLowerCase().includes(q) ||
+          (r.notes && r.notes.toLowerCase().includes(q))
+      ),
+    };
+  },
+
+  // Export current workspace to JSON
   exportData(): string {
-    return JSON.stringify(
-      {
-        version: '2.0',
-        exportDate: new Date().toISOString(),
+    const exportPayload = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      userId: activeUserId,
+      workspace: {
         clients: clientsStore,
         projects: projectsStore,
         tasks: tasksStore,
@@ -542,52 +573,48 @@ ${completedTasksList || '• Все этапы проекта согласова
         content: contentStore,
         results: resultsStore,
       },
-      null,
-      2
-    );
+    };
+    return JSON.stringify(exportPayload, null, 2);
   },
 
-  importData(rawJson: string): boolean {
+  // Import workspace from JSON
+  importData(jsonData: string): boolean {
     try {
-      const data = JSON.parse(rawJson);
-      if (Array.isArray(data.clients)) clientsStore = data.clients;
-      if (Array.isArray(data.projects)) projectsStore = data.projects;
-      if (Array.isArray(data.tasks)) tasksStore = data.tasks;
-      if (Array.isArray(data.finance)) financeStore = data.finance;
-      if (Array.isArray(data.ideas)) ideasStore = data.ideas;
-      if (Array.isArray(data.content)) contentStore = data.content;
-      if (Array.isArray(data.results)) resultsStore = data.results;
-
-      saveStored('clients', clientsStore);
-      saveStored('projects', projectsStore);
-      saveStored('tasks', tasksStore);
-      saveStored('finance', financeStore);
-      saveStored('ideas', ideasStore);
-      saveStored('content', contentStore);
-      saveStored('results', resultsStore);
+      const parsed = JSON.parse(jsonData);
+      const ws = parsed.workspace || parsed;
+      if (!ws) return false;
+      clientsStore = Array.isArray(ws.clients) ? ws.clients : [];
+      projectsStore = Array.isArray(ws.projects) ? ws.projects : [];
+      tasksStore = Array.isArray(ws.tasks) ? ws.tasks : [];
+      financeStore = Array.isArray(ws.finance) ? ws.finance : [];
+      ideasStore = Array.isArray(ws.ideas) ? ws.ideas : [];
+      contentStore = Array.isArray(ws.content) ? ws.content : [];
+      resultsStore = Array.isArray(ws.results) ? ws.results : [];
+      persistCurrentWorkspace();
       notify();
       return true;
-    } catch {
+    } catch (err) {
+      console.error('Import failed:', err);
       return false;
     }
   },
 
-  // Reset to initial demo data
+  // Reset workspace
   resetToDefault() {
-    clientsStore = [...initialClients];
-    projectsStore = [...initialProjects];
-    tasksStore = [...initialTasks];
-    financeStore = [...initialFinance];
-    ideasStore = [...initialIdeas];
-    contentStore = [...initialContent];
-    resultsStore = [...initialResults];
-    saveStored('clients', clientsStore);
-    saveStored('projects', projectsStore);
-    saveStored('tasks', tasksStore);
-    saveStored('finance', financeStore);
-    saveStored('ideas', ideasStore);
-    saveStored('content', contentStore);
-    saveStored('results', resultsStore);
+    this.clearWorkspace();
+  },
+
+  // Clear workspace completely
+  clearWorkspace() {
+    if (!activeUserId) return;
+    clientsStore = [];
+    projectsStore = [];
+    tasksStore = [];
+    financeStore = [];
+    ideasStore = [];
+    contentStore = [];
+    resultsStore = [];
+    persistCurrentWorkspace();
     notify();
   },
 };

@@ -18,9 +18,11 @@ import {
   Download,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { MainNavSection } from '../../types';
 
 export const Topbar: React.FC = () => {
+  const { currentUser } = useAuth();
   const {
     mainSection,
     setMainSection,
@@ -57,8 +59,8 @@ export const Topbar: React.FC = () => {
   const navItems: { id: MainNavSection; label: string }[] = [
     { id: 'dashboard', label: 'Главная' },
     { id: 'work', label: 'Работа' },
+    { id: 'creator', label: 'Создание' },
     { id: 'finance', label: 'Финансы' },
-    { id: 'creator', label: 'Создавай' },
   ];
 
   return (
@@ -291,8 +293,17 @@ export const Topbar: React.FC = () => {
           onClick={openProfile}
           className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#1C2028] to-[#252B36] border border-white/[0.1] text-white font-bold text-xs flex items-center justify-center hover:border-white/[0.3] transition-all cursor-pointer select-none ml-0.5"
           aria-label="Профиль"
+          title={currentUser ? `Профиль: ${currentUser.displayName}` : 'Профиль'}
         >
-          АП
+          {currentUser?.displayName
+            ? currentUser.displayName
+                .split(' ')
+                .filter(Boolean)
+                .map((n) => n[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase()
+            : 'FL'}
         </button>
       </div>
     </header>

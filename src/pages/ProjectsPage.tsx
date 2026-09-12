@@ -103,18 +103,19 @@ export const ProjectsPage: React.FC = () => {
       {/* Projects Grid */}
       {filteredProjects.length === 0 ? (
         <div className="bg-[#11141A] rounded-2xl p-12 text-center border border-white/[0.06]">
-          <div className="w-12 h-12 rounded-xl bg-white/[0.03] text-slate-400 flex items-center justify-center mx-auto mb-3">
+          <div className="w-12 h-12 rounded-xl bg-white/[0.03] text-blue-400 flex items-center justify-center mx-auto mb-3">
             <FolderKanban size={22} />
           </div>
-          <h3 className="text-sm font-bold text-white">Проекты не найдены</h3>
+          <h3 className="text-sm font-bold text-white">Пока здесь ничего нет</h3>
           <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto font-normal">
-            Попробуйте изменить параметры фильтра или создайте новый проект
+            Создайте первый коммерческий проект, чтобы отслеживать дедлайны, этапы и доходы
           </p>
           <button
             onClick={() => openCreateModal('project')}
-            className="mt-4 px-4 py-2 bg-white text-slate-950 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-colors"
+            className="mt-4 px-4 py-2 bg-white text-slate-950 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
-            Создать проект
+            <Plus size={14} />
+            Создать первый проект
           </button>
         </div>
       ) : (

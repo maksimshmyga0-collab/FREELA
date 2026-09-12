@@ -22,6 +22,7 @@ export type ContentPlatform = 'Instagram' | 'Telegram' | 'YouTube' | 'VK' | 'Б�
 
 export interface Client {
   id: string;
+  userId?: string;
   name: string;
   company?: string;
   email?: string;
@@ -35,6 +36,7 @@ export interface Client {
 
 export interface Project {
   id: string;
+  userId?: string;
   title: string;
   clientId: string;
   clientName: string;
@@ -51,6 +53,7 @@ export interface Project {
 
 export interface Task {
   id: string;
+  userId?: string;
   title: string;
   projectId: string;
   projectName: string;
@@ -63,6 +66,7 @@ export interface Task {
 
 export interface FinanceRecord {
   id: string;
+  userId?: string;
   title: string;
   amount: number;
   type: FinanceType;
@@ -75,10 +79,11 @@ export interface FinanceRecord {
 
 export interface Idea {
   id: string;
+  userId?: string;
   title: string;
   description: string;
-  category: 'Reels' | 'YouTube' | 'Статья' | 'Продукт' | 'Подкаст' | 'Курс' | string;
-  status: IdeaStatus;
+  category?: 'Reels' | 'YouTube' | 'Статья' | 'Продукт' | 'Подкаст' | 'Курс' | string;
+  status?: IdeaStatus;
   priority?: IdeaPriority;
   tags?: string[];
   date?: string;
@@ -88,6 +93,7 @@ export interface Idea {
 
 export interface ContentItem {
   id: string;
+  userId?: string;
   title: string;
   type: ContentType;
   platform: ContentPlatform;
@@ -104,6 +110,7 @@ export interface ContentItem {
 
 export interface ResultItem {
   id: string;
+  userId?: string;
   title: string;
   contentId?: string;
   contentTitle?: string;
@@ -119,6 +126,38 @@ export interface ResultItem {
   isPositive?: boolean;
   notes?: string;
 }
+
+// User Profile & SaaS Preparation
+export type UserPlan = 'free' | 'pro';
+export type UserStatus = 'active' | 'trial' | 'past_due';
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  specialization?: string;
+  bio?: string;
+  hourlyRate?: number;
+  currency?: string;
+  telegram?: string;
+  avatarUrl?: string;
+  plan: UserPlan;
+  status: UserStatus;
+  createdAt: string;
+  updatedAt: string;
+  // SaaS preparation fields
+  subscription?: {
+    planId: string;
+    expiresAt?: string;
+    autoRenew?: boolean;
+  };
+  notifications?: {
+    telegramChatId?: string;
+    emailAlerts?: boolean;
+  };
+}
+
+export type AuthScreenMode = 'login' | 'register' | 'forgot_password';
 
 // Top level navigation
 export type MainNavSection = 'dashboard' | 'work' | 'finance' | 'creator';

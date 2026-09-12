@@ -13,6 +13,7 @@ import {
   ResultItem,
 } from '../types';
 import { dataService, subscribeToDataService } from '../services/dataService';
+import { useAuth } from './AuthContext';
 
 export interface AppNotification {
   id: string;
@@ -122,6 +123,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser } = useAuth();
+
   // Navigation State
   const [mainSection, setMainSectionState] = useState<MainNavSection>('dashboard');
   const [workTab, setWorkTab] = useState<WorkSubTab>('projects');
@@ -138,52 +141,79 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [caseStudyProject, setCaseStudyProject] = useState<Project | null>(null);
 
   // Local synced states from dataService
-  const [clients, setClients] = useState<Client[]>(() => dataService.clients.getAll());
-  const [projects, setProjects] = useState<Project[]>(() => dataService.projects.getAll());
-  const [tasks, setTasks] = useState<Task[]>(() => dataService.tasks.getAll());
-  const [finance, setFinance] = useState<FinanceRecord[]>(() => dataService.finance.getAll());
-  const [ideas, setIdeas] = useState<Idea[]>(() => dataService.ideas.getAll());
-  const [content, setContent] = useState<ContentItem[]>(() => dataService.content.getAll());
-  const [results, setResults] = useState<ResultItem[]>(() => dataService.results.getAll());
+  const [clients, setClients] = useState<Client[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [finance, setFinance] = useState<FinanceRecord[]>([]);
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [content, setContent] = useState<ContentItem[]>([]);
+  const [results, setResults] = useState<ResultItem[]>([]);
 
   // CRUD Modal State
   const [activeModal, setActiveModal] = useState<AppContextType['activeModal']>(null);
 
   // Notifications
-  const [notifications, setNotifications] = useState<AppNotification[]>([
-    {
-      id: 'notif-1',
-      title: 'Предоплата получена',
-      message: 'Александр Петров оплатил 15 000 ₽ за проект «Создание логотипа для бренда»',
-      time: 'Сегодня, 11:20',
-      read: false,
-      type: 'success',
-    },
-    {
-      id: 'notif-2',
-      title: 'Дедлайн задачи',
-      message: 'Задача «Завершить первый вариант логотипа» должна быть сдана завтра',
-      time: 'Сегодня, 09:00',
-      read: false,
-      type: 'alert',
-    },
-    {
-      id: 'notif-3',
-      title: 'Новый охват Reels',
-      message: 'Reels №1 набрал 28 400 просмотров и принес 5 заявок на дизайн',
-      time: 'Вчера',
-      read: true,
-      type: 'info',
-    },
-    {
-      id: 'notif-4',
-      title: 'Контент готов к публикации',
-      message: 'Reels №2 «Как считать финансы и не выгорать» готов к выходу',
-      time: '2 дня назад',
-      read: true,
-      type: 'info',
-    },
-  ]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+
+  // Synchronize active user workspace on auth change
+  useEffect(() => {
+    let isMounted = true;
+
+    const initWorkspace = async () => {
+      const uid = currentUser ? currentUser.uid : null;
+      await dataService.switchUser(uid);
+      if (isMounted) {
+        setClients(dataService.clients.getAll());
+        setProjects(dataService.projects.getAll());
+        setTasks(dataService.tasks.getAll());
+        setFinance(dataService.finance.getAll());
+        setIdeas(dataService.ideas.getAll());
+        setContent(dataService.content.getAll());
+        setResults(dataService.results.getAll());
+
+        // Notifications tailored to user
+        if (!currentUser) {
+          setNotifications([]);
+        } else if (currentUser.uid === 'usr_demo_freela') {
+          setNotifications([
+            {
+              id: 'notif-1',
+              title: 'Предоплата получена',
+              message: 'Александр Петров оплатил 15 000 ₽ за проект «Создание логотипа для бренда»',
+              time: 'Сегодня, 11:20',
+              read: false,
+              type: 'success',
+            },
+            {
+              id: 'notif-2',
+              title: 'Дедлайн задачи',
+              message: 'Задача «Завершить первый вариант логотипа» должна быть сдана завтра',
+              time: 'Сегодня, 09:00',
+              read: false,
+              type: 'alert',
+            },
+          ]);
+        } else {
+          setNotifications([
+            {
+              id: 'notif-welcome',
+              title: 'Добро пожаловать в FREELA!',
+              message: `Рабочее пространство для ${currentUser.displayName} создано. Все данные изолированы.`,
+              time: 'Только что',
+              read: false,
+              type: 'info',
+            },
+          ]);
+        }
+      }
+    };
+
+    initWorkspace();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.uid]);
 
   // Backward-compatible activeSection mapping
   const activeSection: NavSection = useMemo(() => {
@@ -299,18 +329,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
 
-    const averageRate = totalHours > 0 ? Math.round(totalCostWithHours / totalHours) : 3750;
+    const defaultRate = currentUser?.hourlyRate || 3500;
+    const averageRate = totalHours > 0 ? Math.round(totalCostWithHours / totalHours) : defaultRate;
 
     return {
       averageRate,
       totalLoggedHours: totalHours,
-      mostProfitableCategory: 'UI/UX & Брендинг',
+      mostProfitableCategory: projects.length > 0 ? 'Дизайн & Разработка' : 'Не определено',
     };
-  }, [projects]);
+  }, [projects, currentUser?.hourlyRate]);
 
   // Dynamic "Next Step" Block Analysis
   const nextSteps = useMemo(() => {
     const steps: NextStepAction[] = [];
+
+    // For brand new users with no projects or tasks
+    if (projects.length === 0 && tasks.length === 0) {
+      steps.push({
+        id: 'step-new-user-project',
+        title: 'Создайте свой первый проект',
+        reason: 'Зафиксируйте задачу заказчика, бюджет и дедлайн в системе',
+        urgency: 'info',
+        badge: 'Быстрый старт',
+        actionText: '+ Проект',
+        onClick: () => {
+          openCreateModal('project');
+        },
+      });
+
+      steps.push({
+        id: 'step-new-user-client',
+        title: 'Добавьте первого клиента',
+        reason: 'Сохраните контакты заказчика и прикрепите к проектам',
+        urgency: 'info',
+        badge: 'Клиенты',
+        actionText: '+ Клиент',
+        onClick: () => {
+          openCreateModal('client');
+        },
+      });
+
+      return steps;
+    }
 
     // 1. Check for urgent or high-priority incomplete tasks
     const urgentTask = tasks.find(
@@ -380,7 +440,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     return steps.slice(0, 3);
-  }, [tasks, finance, content]);
+  }, [tasks, finance, content, projects]);
 
   // Modal handlers
   const openCreateModal = (

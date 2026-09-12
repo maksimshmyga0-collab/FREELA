@@ -80,10 +80,6 @@ export const ItemModal: React.FC = () => {
           setFormData({
             title: '',
             description: '',
-            category: 'Reels',
-            status: 'Новая' as IdeaStatus,
-            priority: 'Высокий' as IdeaPriority,
-            tags: ['FREELA', 'Контент'],
           });
           break;
         case 'content':
@@ -498,60 +494,33 @@ export const ItemModal: React.FC = () => {
             </>
           )}
 
-          {/* IDEA FORM */}
+          {/* IDEA / NOTE FORM */}
           {type === 'idea' && (
             <>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Идея *</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Заголовок заметки *
+                </label>
                 <input
                   type="text"
                   required
                   value={formData.title || ''}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Сделать серию Reels про FREELA"
+                  placeholder="О чем эта мысль или идея..."
                   className={inputClasses}
+                  autoFocus
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Формат</label>
-                  <select
-                    value={formData.category || 'Reels'}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className={inputClasses}
-                  >
-                    <option value="Reels" className="bg-[#11141A] text-white">Reels</option>
-                    <option value="YouTube" className="bg-[#11141A] text-white">YouTube</option>
-                    <option value="Статья" className="bg-[#11141A] text-white">Статья</option>
-                    <option value="Продукт" className="bg-[#11141A] text-white">Продукт</option>
-                    <option value="Подкаст" className="bg-[#11141A] text-white">Подкаст</option>
-                    <option value="Курс" className="bg-[#11141A] text-white">Курс</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Статус</label>
-                  <select
-                    value={formData.status || 'Новая'}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as IdeaStatus })}
-                    className={inputClasses}
-                  >
-                    <option value="Новая" className="bg-[#11141A] text-white">Новая</option>
-                    <option value="В разработке" className="bg-[#11141A] text-white">В разработке</option>
-                    <option value="Готово к съемке" className="bg-[#11141A] text-white">Готово к съемке</option>
-                    <option value="Архив" className="bg-[#11141A] text-white">Архив</option>
-                  </select>
-                </div>
-              </div>
-
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">Описание и хук</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Текст заметки / мысли
+                </label>
                 <textarea
-                  rows={3}
+                  rows={5}
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="В чем ценность для зрителя? Какой призыв к действию?"
+                  placeholder="Запишите детали, тезисы, ссылки или наблюдения..."
                   className={inputClasses}
                 />
               </div>

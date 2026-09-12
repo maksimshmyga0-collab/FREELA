@@ -103,8 +103,26 @@ export const ContentPage: React.FC = () => {
       </div>
 
       {/* Content Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredContent.map((item) => {
+      {filteredContent.length === 0 ? (
+        <div className="bg-[#11141A] rounded-2xl p-12 text-center border border-white/[0.06]">
+          <div className="w-12 h-12 rounded-xl bg-white/[0.03] text-indigo-400 flex items-center justify-center mx-auto mb-3">
+            <FileText size={22} />
+          </div>
+          <h3 className="text-sm font-bold text-white">Пока здесь ничего нет</h3>
+          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto font-normal">
+            Создайте план для Reels, экспертного поста, Telegram-статьи или кейса
+          </p>
+          <button
+            onClick={() => openCreateModal('content')}
+            className="mt-4 px-4 py-2 bg-white text-slate-950 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <Plus size={14} />
+            Создать контент
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredContent.map((item) => {
           const statusConfig = statusColors[item.status] || {
             bg: 'bg-white/[0.04]',
             text: 'text-slate-400',
@@ -161,6 +179,7 @@ export const ContentPage: React.FC = () => {
           );
         })}
       </div>
+      )}
     </div>
   );
 };

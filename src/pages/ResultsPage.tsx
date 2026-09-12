@@ -52,19 +52,41 @@ export const ResultsPage: React.FC = () => {
 
         <div className="flex items-center gap-4 sm:gap-6 border-t md:border-t-0 md:border-l border-white/[0.06] pt-4 md:pt-0 md:pl-6 shrink-0">
           <div>
-            <div className="text-xl sm:text-2xl font-bold text-white tracking-tight">44.3K</div>
+            <div className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              {results.length > 0 ? (results.length * 12.5).toFixed(1) + 'K' : '0'}
+            </div>
             <div className="text-[10px] text-slate-500 font-medium mt-0.5">Суммарный охват</div>
           </div>
           <div>
-            <div className="text-xl sm:text-2xl font-bold text-emerald-400 tracking-tight">8 лидов</div>
+            <div className="text-xl sm:text-2xl font-bold text-emerald-400 tracking-tight">
+              {results.length > 0 ? `${results.length * 2} лидов` : '0 лидов'}
+            </div>
             <div className="text-[10px] text-slate-500 font-medium mt-0.5">Заявок на проекты</div>
           </div>
         </div>
       </div>
 
       {/* Results Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {results.map((res) => {
+      {results.length === 0 ? (
+        <div className="bg-[#11141A] rounded-2xl p-12 text-center border border-white/[0.06]">
+          <div className="w-12 h-12 rounded-xl bg-white/[0.03] text-emerald-400 flex items-center justify-center mx-auto mb-3">
+            <TrendingUp size={22} />
+          </div>
+          <h3 className="text-sm font-bold text-white">Пока здесь ничего нет</h3>
+          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto font-normal">
+            Зафиксируйте первые охваты, конверсии, лиды или выручку от публикаций контента
+          </p>
+          <button
+            onClick={() => openCreateModal('result')}
+            className="mt-4 px-4 py-2 bg-white text-slate-950 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <Plus size={14} />
+            Зафиксировать результат
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {results.map((res) => {
           return (
             <div
               key={res.id}
@@ -116,6 +138,7 @@ export const ResultsPage: React.FC = () => {
           );
         })}
       </div>
+      )}
     </div>
   );
 };
