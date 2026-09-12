@@ -95,8 +95,8 @@ export const AuthScreen: React.FC = () => {
             {mode === 'forgot_password' && 'Восстановление пароля'}
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            {mode === 'login' && 'Твой фриланс, проекты и доходы под контролем'}
-            {mode === 'register' && 'Персональное чистое рабочее пространство'}
+            {mode === 'login' && 'Работай. Создавай. Развивайся.'}
+            {mode === 'register' && 'Работай. Создавай. Развивайся.'}
             {mode === 'forgot_password' && 'Укажите email и задайте новый пароль'}
           </p>
         </div>
