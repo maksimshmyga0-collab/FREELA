@@ -1,0 +1,6 @@
+{
+  "name": "FREELA",
+  "description": "Работай. Создавай. Развивайся. Премиальное рабочее пространство для фрилансеров и креаторов.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
