@@ -140,11 +140,11 @@ export const ProfileModal: React.FC = () => {
         .slice(0, 2)
         .join('')
         .toUpperCase()
-    : 'FL';
+    : 'CF';
 
   const shareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/?u=${currentUser.uid}`
-    : `https://freela.app/u/${currentUser.uid}`;
+    : `https://claryfe.app/u/${currentUser.uid}`;
 
   const handleCopyLink = async () => {
     try {
@@ -162,7 +162,7 @@ export const ProfileModal: React.FC = () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${currentUser.displayName} — FREELA Профиль`,
+          title: `${currentUser.displayName} — CLARYFE Профиль`,
           text: `Личная визитка специалиста ${currentUser.displayName} (${currentUser.specialization || 'Фрилансер'})`,
           url: shareUrl,
         });
@@ -223,7 +223,7 @@ export const ProfileModal: React.FC = () => {
         <div className="p-4 sm:p-5 border-b border-white/[0.08] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-white tracking-tight">
-              Личная карточка FREELA
+              Личная карточка CLARYFE
             </h3>
             <span className="text-[10px] uppercase tracking-wider font-bold bg-white/[0.06] text-slate-300 px-2 py-0.5 rounded-md border border-white/[0.08]">
               {currentUser.plan === 'pro' ? 'Pro Plan' : 'Free Plan'}
@@ -280,7 +280,7 @@ export const ProfileModal: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     <Sparkles size={12} className="text-amber-400" />
-                    <span>FREELA Verified Freelancer</span>
+                    <span>CLARYFE Verified Freelancer</span>
                   </div>
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
                     <ShieldCheck size={11} />

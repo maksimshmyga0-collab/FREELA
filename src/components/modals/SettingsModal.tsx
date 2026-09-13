@@ -24,7 +24,7 @@ export const SettingsModal: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `freela_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `claryfe_backup_${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -63,7 +63,7 @@ export const SettingsModal: React.FC = () => {
         <div className="p-4 sm:p-5 border-b border-white/[0.08] flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-white tracking-tight">
-              Настройки FREELA
+              Настройки CLARYFE
             </h3>
             <p className="text-[11px] text-slate-400">
               Управление данными, локальным хранилищем и резервными копиями
@@ -98,8 +98,8 @@ export const SettingsModal: React.FC = () => {
               </div>
             </div>
             <a
-              href="/freela-project.zip"
-              download="freela-project.zip"
+              href="/claryfe-project.zip"
+              download="claryfe-project.zip"
               className="flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-xl shadow-md transition-all shrink-0 active:scale-95"
             >
               <Download size={14} />
@@ -203,7 +203,7 @@ export const SettingsModal: React.FC = () => {
         {/* Footer */}
         <div className="p-4 border-t border-white/[0.08] flex items-center justify-between bg-white/[0.01]">
           <span className="text-[10px] text-slate-500">
-            FREELA v2.0 • «Работай. Создавай. Развивайся.»
+            CLARYFE v2.0 • «Работай. Создавай. Развивайся.»
           </span>
           <button
             onClick={closeSettings}

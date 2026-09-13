@@ -15,6 +15,7 @@ import {
   Sparkles,
   TrendingUp,
 } from 'lucide-react';
+import { BrandLogo } from '../common/BrandLogo';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { MainNavSection } from '../../types';
@@ -63,7 +64,7 @@ export const Topbar: React.FC = () => {
 
   return (
     <header
-      id="freela-topbar"
+      id="claryfe-topbar"
       className="sticky top-0 z-30 h-14 bg-[#0A0C10]/95 backdrop-blur-md border-b border-white/[0.08] px-4 sm:px-6 flex items-center justify-between gap-4 select-none"
     >
       {/* Left: Brand Logo & Main Navigation */}
@@ -81,15 +82,9 @@ export const Topbar: React.FC = () => {
         {/* Brand Logo */}
         <div
           onClick={() => setMainSection('dashboard')}
-          className="flex items-center gap-2 cursor-pointer group shrink-0"
+          className="cursor-pointer group shrink-0"
         >
-          <div className="w-7 h-7 rounded-lg bg-white text-slate-950 font-black text-xs flex items-center justify-center tracking-tighter shadow-sm group-hover:scale-105 transition-transform">
-            FR
-          </div>
-          <span className="text-base font-extrabold tracking-tight text-white flex items-center gap-1">
-            FREELA
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-          </span>
+          <BrandLogo size="sm" />
         </div>
 
         {/* Desktop Top Navigation Tabs: Главная | Работа | Финансы | Создавай */}

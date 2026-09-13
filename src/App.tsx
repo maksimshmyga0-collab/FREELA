@@ -10,6 +10,7 @@ import { SettingsModal } from './components/modals/SettingsModal';
 import { ProfileModal } from './components/modals/ProfileModal';
 import { WidgetSettingsModal } from './components/dashboard/WidgetSettingsModal';
 import { AuthScreen } from './components/auth/AuthScreen';
+import { BrandLogo } from './components/common/BrandLogo';
 
 import { DashboardPage } from './pages/DashboardPage';
 import { WorkPage } from './pages/WorkPage';
@@ -40,7 +41,7 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#0A0C10] text-slate-200">
-      {/* Topbar: FREELA | Главная | Работа | Создание | Доски | Финансы + Controls */}
+      {/* Topbar: CLARYFE | Главная | Работа | Создание | Доски | Финансы + Controls */}
       <Topbar />
 
       {/* Mobile Drawer */}
@@ -78,11 +79,9 @@ const RootRouter: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-screen w-screen bg-[#0A0C10] text-slate-400">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white text-slate-950 font-black text-sm flex items-center justify-center shadow-lg animate-pulse">
-            FR
-          </div>
+          <BrandLogo size="md" showText={false} className="animate-pulse" />
           <span className="text-xs font-medium tracking-wide text-slate-400">
-            Загрузка FREELA...
+            Загрузка CLARYFE...
           </span>
         </div>
       </div>

@@ -172,7 +172,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (currentUser?.uid) {
       try {
-        const cached = localStorage.getItem(`freela_widgets_${currentUser.uid}`);
+        const cached = localStorage.getItem(`claryfe_widgets_${currentUser.uid}`) || localStorage.getItem(`freela_widgets_${currentUser.uid}`);
         if (cached) return { ...DEFAULT_WIDGET_CONFIG, ...JSON.parse(cached) };
       } catch {}
     }
@@ -191,7 +191,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       loaded = { ...DEFAULT_WIDGET_CONFIG, ...currentUser.dashboardWidgets };
     } else {
       try {
-        const cached = localStorage.getItem(`freela_widgets_${currentUser.uid}`);
+        const cached = localStorage.getItem(`claryfe_widgets_${currentUser.uid}`) || localStorage.getItem(`freela_widgets_${currentUser.uid}`);
         if (cached) {
           loaded = { ...DEFAULT_WIDGET_CONFIG, ...JSON.parse(cached) };
         }
@@ -205,7 +205,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const next = { ...prev, [widgetId]: visible };
       if (currentUser?.uid) {
         try {
-          localStorage.setItem(`freela_widgets_${currentUser.uid}`, JSON.stringify(next));
+          localStorage.setItem(`claryfe_widgets_${currentUser.uid}`, JSON.stringify(next));
         } catch {}
         // Persist to user profile database in background
         updateProfile({ dashboardWidgets: next }).catch((err) => {
@@ -220,7 +220,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setWidgetConfig(DEFAULT_WIDGET_CONFIG);
     if (currentUser?.uid) {
       try {
-        localStorage.setItem(`freela_widgets_${currentUser.uid}`, JSON.stringify(DEFAULT_WIDGET_CONFIG));
+        localStorage.setItem(`claryfe_widgets_${currentUser.uid}`, JSON.stringify(DEFAULT_WIDGET_CONFIG));
       } catch {}
       updateProfile({ dashboardWidgets: DEFAULT_WIDGET_CONFIG }).catch((err) => {
         console.warn('Failed to reset widget config in user profile:', err);
@@ -291,7 +291,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setNotifications([
             {
               id: 'notif-welcome',
-              title: 'Добро пожаловать в FREELA!',
+              title: 'Добро пожаловать в CLARYFE!',
               message: `Рабочее пространство для ${currentUser.displayName} создано. Все данные изолированы.`,
               time: 'Только что',
               read: false,

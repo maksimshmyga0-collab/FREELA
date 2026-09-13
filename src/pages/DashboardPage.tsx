@@ -568,7 +568,7 @@ export const DashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* 5. Section: Финансы & Финансовая эффективность + FREELA Insights (Пункт 10 & 12) */}
+      {/* 5. Section: Финансы & Финансовая эффективность + CLARYFE Insights (Пункт 10 & 12) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left 2 cols: Финансы panel with metrics & chart & efficiency card */}
         <div className="lg:col-span-2 bg-[#11141A] p-5 rounded-2xl border border-white/[0.06] space-y-4">
@@ -657,7 +657,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right 1 col: FREELA Insights (Пункт 10) */}
+        {/* Right 1 col: CLARYFE Insights (Пункт 10) */}
         <div className="bg-[#11141A] p-5 rounded-2xl border border-white/[0.06] flex flex-col justify-between space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -665,7 +665,7 @@ export const DashboardPage: React.FC = () => {
                 <Brain size={14} />
               </div>
               <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
-                FREELA Insights
+                CLARYFE Insights
               </h2>
             </div>
             <p className="text-[11px] text-slate-400">

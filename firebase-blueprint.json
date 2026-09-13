@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Personal user profile and subscription metadata",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique Firebase Authentication UID" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "maxLength": 100, "description": "User display name" },
+        "specialization": { "type": "string", "maxLength": 120, "description": "Professional title or specialization" },
+        "plan": { "type": "string", "enum": ["free", "pro"], "description": "Membership plan" },
+        "status": { "type": "string", "enum": ["active", "trial", "past_due"], "description": "Account status" },
+        "emailVerified": { "type": "boolean", "description": "Whether email is verified in Firebase Auth" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Last update timestamp" }
+      },
+      "required": ["uid", "email", "displayName"]
+    },
+    "UserWorkspace": {
+      "title": "UserWorkspace",
+      "description": "User private workspace containing freelance clients, projects, tasks, finances, ideas, and boards",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase UID" },
+        "clients": { "type": "array", "description": "Freelance clients list" },
+        "projects": { "type": "array", "description": "Projects list" },
+        "tasks": { "type": "array", "description": "Tasks list" },
+        "finance": { "type": "array", "description": "Income and expense records" },
+        "ideas": { "type": "array", "description": "Content ideas" },
+        "content": { "type": "array", "description": "Published and scheduled content items" },
+        "results": { "type": "array", "description": "Analytics and work outcomes" },
+        "boards": { "type": "array", "description": "Visual mood boards" },
+        "boardItems": { "type": "array", "description": "Items placed on mood boards" },
+        "updatedAt": { "type": "string", "description": "Workspace last sync timestamp" }
+      },
+      "required": ["userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Isolated private user profile document identified by Firebase Auth UID"
+    },
+    "/workspaces/{userId}": {
+      "schema": "UserWorkspace",
+      "description": "Isolated private workspace document owned and accessible only by the authenticated user"
+    }
+  }
+}

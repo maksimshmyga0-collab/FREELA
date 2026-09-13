@@ -15,6 +15,7 @@ import {
   Plus,
   LayoutGrid,
 } from 'lucide-react';
+import { BrandLogo } from '../common/BrandLogo';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { MainNavSection, WorkSubTab, CreatorSubTab } from '../../types';
@@ -58,15 +59,7 @@ export const MobileDrawer: React.FC = () => {
       <div className="relative w-[300px] max-w-[85vw] h-full bg-[#0D0F14] border-r border-white/[0.08] z-10 flex flex-col shadow-2xl animate-in slide-in-from-left duration-200">
         {/* Header */}
         <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-white text-slate-950 font-black text-xs flex items-center justify-center tracking-tighter">
-              FR
-            </div>
-            <span className="text-base font-extrabold tracking-tight text-white flex items-center gap-1">
-              FREELA
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            </span>
-          </div>
+          <BrandLogo size="sm" />
           <button
             onClick={() => setIsMobileMenuOpen(false)}
             className="text-slate-400 hover:text-white p-2 min-w-[38px] min-h-[38px] flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10"

@@ -537,7 +537,7 @@ export const ItemModal: React.FC = () => {
                   required
                   value={formData.title || ''}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Reels про FREELA №1"
+                  placeholder="Reels про CLARYFE №1"
                   className={inputClasses}
                 />
               </div>
@@ -612,7 +612,7 @@ export const ItemModal: React.FC = () => {
                   required
                   value={formData.title || ''}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Reels про FREELA №1 — первый результат"
+                  placeholder="Reels про CLARYFE №1 — первый результат"
                   className={inputClasses}
                 />
               </div>

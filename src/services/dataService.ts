@@ -90,17 +90,30 @@ export const dataService = {
       return;
     }
 
-    // Load user's private workspace
-    const ws = await workspaceDb.getWorkspace(userId);
-    clientsStore = ws.clients || [];
-    projectsStore = ws.projects || [];
-    tasksStore = ws.tasks || [];
-    financeStore = ws.finance || [];
-    ideasStore = ws.ideas || [];
-    contentStore = ws.content || [];
-    resultsStore = ws.results || [];
-    boardsStore = ws.boards || [];
-    boardItemsStore = ws.boardItems || [];
+    // Load user's private workspace safely
+    try {
+      const ws = await workspaceDb.getWorkspace(userId);
+      clientsStore = ws.clients || [];
+      projectsStore = ws.projects || [];
+      tasksStore = ws.tasks || [];
+      financeStore = ws.finance || [];
+      ideasStore = ws.ideas || [];
+      contentStore = ws.content || [];
+      resultsStore = ws.results || [];
+      boardsStore = ws.boards || [];
+      boardItemsStore = ws.boardItems || [];
+    } catch (err) {
+      console.warn('Could not load workspace from Firestore, using fresh store:', err);
+      clientsStore = [];
+      projectsStore = [];
+      tasksStore = [];
+      financeStore = [];
+      ideasStore = [];
+      contentStore = [];
+      resultsStore = [];
+      boardsStore = [];
+      boardItemsStore = [];
+    }
     notify();
   },
 
@@ -484,7 +497,7 @@ ${tasksList}
 - Выполнение этапов: **${project.progress}%**
 
 ---
-*Сгенерировано в FREELA Workspace — «Работай. Создавай. Развивайся.»*`;
+*Сгенерировано в CLARYFE Workspace — «Работай. Создавай. Развивайся.»*`;
 
     return {
       project,

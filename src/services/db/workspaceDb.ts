@@ -1,3 +1,5 @@
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import {
   Client,
   Project,
@@ -23,137 +25,136 @@ export interface UserWorkspaceData {
   boardItems?: BoardItem[];
 }
 
-export interface StoredUser {
-  uid: string;
-  email: string;
-  passwordHash: string;
-  salt: string;
-  profile: UserProfile;
-}
+export const workspaceDb = {
+  // Ensure user profile and workspace exist in Firestore in the exact required order:
+  // Firebase Auth -> get UID -> create user document in Firestore -> create/load workspace
+  // Guarantees document creation happens BEFORE getDoc() is ever called.
+  async ensureUserInitialized(
+    firebaseUser: { uid: string; email?: string | null; displayName?: string | null; emailVerified?: boolean },
+    extra?: { displayName?: string; specialization?: string }
+  ): Promise<UserProfile> {
+    const uid = firebaseUser.uid;
+    const now = new Date().toISOString();
 
-const DB_NAME = 'freela_saas_db';
-const DB_VERSION = 1;
-const STORE_USERS = 'users';
-const STORE_WORKSPACES = 'workspaces';
-
-// IndexedDB Helper with safety and fallback
-class WorkspaceDatabase {
-  private dbPromise: Promise<IDBDatabase> | null = null;
-  private isIndexedDBAvailable: boolean = typeof window !== 'undefined' && 'indexedDB' in window;
-
-  private async getDB(): Promise<IDBDatabase> {
-    if (!this.isIndexedDBAvailable) {
-      throw new Error('IndexedDB not supported in this environment');
-    }
-
-    if (this.dbPromise) return this.dbPromise;
-
-    this.dbPromise = new Promise((resolve, reject) => {
-      try {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-        request.onupgradeneeded = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
-          if (!db.objectStoreNames.contains(STORE_USERS)) {
-            db.createObjectStore(STORE_USERS, { keyPath: 'uid' });
-          }
-          if (!db.objectStoreNames.contains(STORE_WORKSPACES)) {
-            db.createObjectStore(STORE_WORKSPACES, { keyPath: 'userId' });
-          }
-        };
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => {
-          console.warn('IndexedDB open error, using fallback storage:', request.error);
-          reject(request.error);
-        };
-      } catch (err) {
-        reject(err);
-      }
-    });
-
-    return this.dbPromise;
-  }
-
-  // Fallback to local storage namespace if IndexedDB is blocked
-  private getFallbackStorage<T>(key: string, defaultVal: T): T {
-    try {
-      const raw = localStorage.getItem('freela_sec_' + key);
-      return raw ? JSON.parse(raw) : defaultVal;
-    } catch {
-      return defaultVal;
-    }
-  }
-
-  private setFallbackStorage<T>(key: string, val: T): void {
-    try {
-      localStorage.setItem('freela_sec_' + key, JSON.stringify(val));
-    } catch {
-      // ignore
-    }
-  }
-
-  // --- USERS MANAGEMENT ---
-  async getAllUsers(): Promise<StoredUser[]> {
-    try {
-      const db = await this.getDB();
-      return new Promise((resolve) => {
-        const tx = db.transaction(STORE_USERS, 'readonly');
-        const store = tx.objectStore(STORE_USERS);
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => resolve(this.getFallbackStorage<StoredUser[]>('users', []));
-      });
-    } catch {
-      return this.getFallbackStorage<StoredUser[]>('users', []);
-    }
-  }
-
-  async findUserByEmail(email: string): Promise<StoredUser | null> {
-    const users = await this.getAllUsers();
-    return users.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
-  }
-
-  async findUserById(uid: string): Promise<StoredUser | null> {
-    const users = await this.getAllUsers();
-    return users.find((u) => u.uid === uid) || null;
-  }
-
-  async saveUser(user: StoredUser): Promise<void> {
-    try {
-      const db = await this.getDB();
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STORE_USERS, 'readwrite');
-        const store = tx.objectStore(STORE_USERS);
-        const req = store.put(user);
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-      });
-    } catch {
-      // Fallback
-      const users = this.getFallbackStorage<StoredUser[]>('users', []);
-      const idx = users.findIndex((u) => u.uid === user.uid);
-      if (idx >= 0) users[idx] = user;
-      else users.push(user);
-      this.setFallbackStorage('users', users);
-    }
-  }
-
-  async updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
-    const user = await this.findUserById(uid);
-    if (!user) return null;
-
-    user.profile = {
-      ...user.profile,
-      ...updates,
-      updatedAt: new Date().toISOString(),
+    const initialProfile: UserProfile = {
+      uid,
+      email: firebaseUser.email || '',
+      displayName: extra?.displayName || firebaseUser.displayName || 'Пользователь CLARYFE',
+      specialization: extra?.specialization || 'Фрилансер & Креатор',
+      hourlyRate: 3500,
+      currency: 'RUB',
+      plan: 'free',
+      status: 'active',
+      emailVerified: !!firebaseUser.emailVerified,
+      createdAt: now,
+      updatedAt: now,
     };
 
-    await this.saveUser(user);
-    return user.profile;
-  }
+    // 1. Create/merge user document in Firestore FIRST before any getDoc
+    const userRef = doc(db, 'users', uid);
+    try {
+      await setDoc(
+        userRef,
+        {
+          ...initialProfile,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn('Initial write to users document:', err);
+    }
 
-  // --- WORKSPACE DATA ISOLATION (ZERO DATA LEAKAGE) ---
+    // 2. Create/merge workspace document in Firestore
+    const wsRef = doc(db, 'workspaces', uid);
+    try {
+      await setDoc(
+        wsRef,
+        {
+          userId: uid,
+          clients: [],
+          projects: [],
+          tasks: [],
+          finance: [],
+          ideas: [],
+          content: [],
+          results: [],
+          boards: [],
+          boardItems: [],
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn('Initial write to workspaces document:', err);
+    }
+
+    // 3. Document is now created, safely read back current data
+    try {
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        return snap.data() as UserProfile;
+      }
+    } catch (err) {
+      console.warn('Safely reading created profile from users document:', err);
+    }
+
+    return initialProfile;
+  },
+
+  // Get private user profile from Firestore
+  async getUserProfile(uid: string): Promise<UserProfile | null> {
+    if (!uid) return null;
+    try {
+      const userRef = doc(db, 'users', uid);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        return null;
+      }
+      return snap.data() as UserProfile;
+    } catch (error) {
+      console.warn(`Could not read profile for users/${uid}:`, error);
+      return null;
+    }
+  },
+
+  // Save or create user profile in Firestore
+  async saveUserProfile(profile: UserProfile): Promise<void> {
+    if (!profile?.uid) return;
+    try {
+      const userRef = doc(db, 'users', profile.uid);
+      await setDoc(
+        userRef,
+        {
+          ...profile,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.warn(`Could not save user profile for users/${profile.uid}:`, error);
+    }
+  },
+
+  // Update profile fields in Firestore
+  async updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
+    if (!uid) return null;
+    try {
+      const userRef = doc(db, 'users', uid);
+      const updatedData = {
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      };
+      await setDoc(userRef, updatedData, { merge: true });
+      const snap = await getDoc(userRef);
+      return snap.exists() ? (snap.data() as UserProfile) : null;
+    } catch (error) {
+      console.warn(`Could not update user profile for users/${uid}:`, error);
+      return null;
+    }
+  },
+
+  // Get user workspace from Firestore
   async getWorkspace(userId: string): Promise<UserWorkspaceData> {
     const emptyWorkspace: UserWorkspaceData = {
       clients: [],
@@ -167,43 +168,75 @@ class WorkspaceDatabase {
       boardItems: [],
     };
 
-    try {
-      const db = await this.getDB();
-      return new Promise((resolve) => {
-        const tx = db.transaction(STORE_WORKSPACES, 'readonly');
-        const store = tx.objectStore(STORE_WORKSPACES);
-        const req = store.get(userId);
-        req.onsuccess = () => {
-          if (req.result && req.result.data) {
-            resolve(req.result.data);
-          } else {
-            resolve(emptyWorkspace);
-          }
-        };
-        req.onerror = () => {
-          resolve(this.getFallbackStorage<UserWorkspaceData>(`ws_${userId}`, emptyWorkspace));
-        };
-      });
-    } catch {
-      return this.getFallbackStorage<UserWorkspaceData>(`ws_${userId}`, emptyWorkspace);
-    }
-  }
+    if (!userId) return emptyWorkspace;
 
+    try {
+      const wsRef = doc(db, 'workspaces', userId);
+      const snap = await getDoc(wsRef);
+      if (!snap.exists()) {
+        // Initialize 100% empty workspace in Firestore for this new user
+        await setDoc(wsRef, {
+          userId,
+          ...emptyWorkspace,
+          updatedAt: new Date().toISOString(),
+        });
+        return emptyWorkspace;
+      }
+      const data = snap.data();
+      return {
+        clients: Array.isArray(data?.clients) ? data.clients : [],
+        projects: Array.isArray(data?.projects) ? data.projects : [],
+        tasks: Array.isArray(data?.tasks) ? data.tasks : [],
+        finance: Array.isArray(data?.finance) ? data.finance : [],
+        ideas: Array.isArray(data?.ideas) ? data.ideas : [],
+        content: Array.isArray(data?.content) ? data.content : [],
+        results: Array.isArray(data?.results) ? data.results : [],
+        boards: Array.isArray(data?.boards) ? data.boards : [],
+        boardItems: Array.isArray(data?.boardItems) ? data.boardItems : [],
+      };
+    } catch (error) {
+      console.warn(`Could not read workspace for workspaces/${userId}:`, error);
+      return emptyWorkspace;
+    }
+  },
+
+  // Save workspace data into Firestore
   async saveWorkspace(userId: string, data: UserWorkspaceData): Promise<void> {
+    if (!userId) return;
     try {
-      const db = await this.getDB();
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STORE_WORKSPACES, 'readwrite');
-        const store = tx.objectStore(STORE_WORKSPACES);
-        const req = store.put({ userId, data, updatedAt: new Date().toISOString() });
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-      });
-    } catch {
-      // Fallback
-      this.setFallbackStorage(`ws_${userId}`, data);
+      const wsRef = doc(db, 'workspaces', userId);
+      await setDoc(
+        wsRef,
+        {
+          userId,
+          clients: data.clients || [],
+          projects: data.projects || [],
+          tasks: data.tasks || [],
+          finance: data.finance || [],
+          ideas: data.ideas || [],
+          content: data.content || [],
+          results: data.results || [],
+          boards: data.boards || [],
+          boardItems: data.boardItems || [],
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.warn(`Could not write workspace for workspaces/${userId}:`, error);
     }
-  }
-}
+  },
 
-export const workspaceDb = new WorkspaceDatabase();
+  // Purge any lingering legacy local storage keys so auth is purely in Firebase
+  ensureCleanLocalAuth(): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.removeItem('freela_auth_session');
+      localStorage.removeItem('freela_sec_users');
+      localStorage.removeItem('freela_sec_pending');
+      localStorage.removeItem('freela_pending_verification');
+    } catch {
+      // ignore
+    }
+  },
+};

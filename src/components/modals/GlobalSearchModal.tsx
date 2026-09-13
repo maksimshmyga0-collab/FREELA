@@ -86,7 +86,7 @@ export const GlobalSearchModal: React.FC = () => {
         <div className="p-4 max-h-[65vh] overflow-y-auto dark-scrollbar space-y-5">
           {!query.trim() ? (
             <div className="py-12 text-center text-slate-500 text-xs">
-              Начните вводить текст для поиска по всем 8 разделам FREELA
+              Начните вводить текст для поиска по всем 8 разделам CLARYFE
             </div>
           ) : totalResultsCount === 0 ? (
             <div className="py-12 text-center text-slate-500 text-xs">
@@ -353,7 +353,7 @@ export const GlobalSearchModal: React.FC = () => {
 
         {/* Footer */}
         <div className="p-3 bg-white/[0.02] border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-500">
-          <span>FREELA Global Search</span>
+          <span>CLARYFE Global Search</span>
           <button
             onClick={closeSearch}
             className="text-slate-400 hover:text-white transition-colors"

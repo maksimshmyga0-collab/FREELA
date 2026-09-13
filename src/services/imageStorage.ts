@@ -1,4 +1,4 @@
-// IndexedDB-based local image storage for FREELA Boards
+// IndexedDB-based local image storage for CLARYFE Boards
 // Isolates user files, prevents localStorage size limit issues, and ensures persistent loading across sessions.
 
 const DB_NAME = 'freela_canvas_images_db';

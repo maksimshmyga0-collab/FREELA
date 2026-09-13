@@ -1,243 +1,281 @@
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  updateProfile as updateFirebaseProfile,
+  reload,
+  applyActionCode,
+  User as FirebaseUser,
+} from 'firebase/auth';
+import { auth } from './firebase';
+import { workspaceDb } from './db/workspaceDb';
 import { UserProfile } from '../types';
-import { workspaceDb, StoredUser } from './db/workspaceDb';
 
-const SESSION_STORAGE_KEY = 'freela_auth_session';
-
-// Secure Password Hashing with SHA-256 and Salt
-async function hashPassword(password: string, salt: string): Promise<string> {
-  const enc = new TextEncoder();
-  const data = enc.encode(password + ':::' + salt);
-
-  if (typeof crypto !== 'undefined' && crypto.subtle) {
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+export function mapFirebaseAuthError(err: any): string {
+  const code = err?.code || '';
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'Пользователь с таким email уже зарегистрирован. Пожалуйста, войдите.';
+    case 'auth/invalid-email':
+      return 'Некорректный адрес электронной почты.';
+    case 'auth/operation-not-allowed':
+      return 'Вход с помощью email и пароля не включен.';
+    case 'auth/weak-password':
+      return 'Пароль слишком простой. Используйте не менее 6 символов.';
+    case 'auth/user-disabled':
+      return 'Данная учетная запись была отключена администратором.';
+    case 'auth/user-not-found':
+      return 'Пользователь с таким email не найден.';
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'Неверный адрес email или пароль.';
+    case 'auth/too-many-requests':
+      return 'Слишком много неудачных попыток. Пожалуйста, подождите немного перед повтором.';
+    case 'auth/invalid-action-code':
+      return 'Неверный или устаревший код ссылки подтверждения.';
+    case 'auth/expired-action-code':
+      return 'Срок действия ссылки подтверждения истек. Запросите новое письмо.';
+    default:
+      return err?.message || 'Произошла ошибка авторизации Firebase.';
   }
-
-  // Fallback hash for environments without subtle crypto
-  let hash = 0;
-  const str = password + salt;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(16);
 }
 
-function generateSalt(): string {
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
-    return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
+export class UnverifiedEmailError extends Error {
+  public email: string;
+  constructor(email: string) {
+    super('Email не подтвержден. Пожалуйста, подтвердите вашу почту по ссылке из письма.');
+    this.name = 'UnverifiedEmailError';
+    this.email = email;
   }
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
 export const authService = {
-  // Check current session
+  // Check current session from Firebase Auth
   async getCurrentSession(): Promise<UserProfile | null> {
-    try {
-      const raw = localStorage.getItem(SESSION_STORAGE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as { uid: string };
-      if (!parsed?.uid) return null;
+    workspaceDb.ensureCleanLocalAuth();
 
-      const user = await workspaceDb.findUserById(parsed.uid);
-      if (user) {
-        return user.profile;
-      }
-      return null;
-    } catch {
-      return null;
-    }
+    return new Promise((resolve) => {
+      const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+        unsubscribe();
+        if (!firebaseUser) {
+          resolve(null);
+          return;
+        }
+
+        try {
+          // If unverified, user needs to verify first
+          if (!firebaseUser.emailVerified) {
+            resolve(null);
+            return;
+          }
+
+          const profile = await workspaceDb.ensureUserInitialized(firebaseUser);
+          resolve(profile);
+        } catch {
+          resolve(null);
+        }
+      });
+    });
   },
 
-  // Register a new user with empty workspace
-  async register(
+  // Initiate registration via Firebase Authentication and send real verification email
+  async prepareRegistration(
     email: string,
     password: string,
     displayName: string,
     specialization?: string
-  ): Promise<UserProfile> {
+  ): Promise<{ email: string; expiresAt: number; resendCooldown: number }> {
     const cleanEmail = email.trim().toLowerCase();
+    const cleanName = displayName.trim();
+
     if (!cleanEmail || !cleanEmail.includes('@')) {
       throw new Error('Укажите корректный адрес электронной почты');
+    }
+    if (!cleanName) {
+      throw new Error('Пожалуйста, укажите ваше имя');
     }
     if (!password || password.length < 6) {
       throw new Error('Пароль должен содержать минимум 6 символов');
     }
-    if (!displayName || displayName.trim().length === 0) {
-      throw new Error('Пожалуйста, укажите ваше имя');
+
+    try {
+      // 1. Create account in Firebase Authentication
+      const userCred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      const user = userCred.user;
+
+      // 2. Set Firebase displayName
+      if (cleanName) {
+        await updateFirebaseProfile(user, { displayName: cleanName });
+      }
+
+      // 3. Send real Firebase verification email
+      await sendEmailVerification(user);
+
+      // 4. Create isolated User Profile in Firestore
+      const now = new Date().toISOString();
+      const profile: UserProfile = {
+        uid: user.uid,
+        email: cleanEmail,
+        displayName: cleanName,
+        specialization: specialization?.trim() || 'Фрилансер & Креатор',
+        hourlyRate: 3500,
+        currency: 'RUB',
+        plan: 'free',
+        status: 'active',
+        emailVerified: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      try {
+        await workspaceDb.saveUserProfile(profile);
+
+        // 5. Initialize 100% EMPTY isolated workspace in Firestore
+        await workspaceDb.saveWorkspace(user.uid, {
+          clients: [],
+          projects: [],
+          tasks: [],
+          finance: [],
+          ideas: [],
+          content: [],
+          results: [],
+          boards: [],
+          boardItems: [],
+        });
+      } catch (dbErr) {
+        console.warn('Initial Firestore provisioning deferred to verification:', dbErr);
+      }
+
+      return {
+        email: cleanEmail,
+        expiresAt: Date.now() + 15 * 60 * 1000,
+        resendCooldown: 60,
+      };
+    } catch (err: any) {
+      throw new Error(mapFirebaseAuthError(err));
     }
-
-    const existing = await workspaceDb.findUserByEmail(cleanEmail);
-    if (existing) {
-      throw new Error('Пользователь с таким email уже зарегистрирован');
-    }
-
-    const uid = 'usr_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
-    const salt = generateSalt();
-    const passwordHash = await hashPassword(password, salt);
-    const now = new Date().toISOString();
-
-    const profile: UserProfile = {
-      uid,
-      email: cleanEmail,
-      displayName: displayName.trim(),
-      specialization: specialization?.trim() || 'Фрилансер & Креатор',
-      hourlyRate: 3500,
-      currency: 'RUB',
-      plan: 'free',
-      status: 'active',
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const storedUser: StoredUser = {
-      uid,
-      email: cleanEmail,
-      passwordHash,
-      salt,
-      profile,
-    };
-
-    // Save user record
-    await workspaceDb.saveUser(storedUser);
-
-    // Initialize 100% EMPTY workspace for new user
-    await workspaceDb.saveWorkspace(uid, {
-      clients: [],
-      projects: [],
-      tasks: [],
-      finance: [],
-      ideas: [],
-      content: [],
-      results: [],
-    });
-
-    // Set active session
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ uid }));
-
-    return profile;
   },
 
-  // Login existing user
-  async login(email: string, password: string): Promise<UserProfile> {
-    const cleanEmail = email.trim().toLowerCase();
-    const user = await workspaceDb.findUserByEmail(cleanEmail);
+  // Check if current authenticated user has verified their email in Firebase
+  async checkEmailVerified(): Promise<UserProfile | null> {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return null;
 
-    if (!user) {
-      throw new Error('Неверный адрес email или пароль');
+    try {
+      await reload(currentUser);
+      if (currentUser.emailVerified) {
+        const profile = await workspaceDb.ensureUserInitialized(currentUser);
+        return profile;
+      }
+      return null;
+    } catch (err: any) {
+      throw new Error(mapFirebaseAuthError(err));
     }
-
-    const hash = await hashPassword(password, user.salt);
-    if (hash !== user.passwordHash) {
-      throw new Error('Неверный адрес email или пароль');
-    }
-
-    // Set active session
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ uid: user.uid }));
-    return user.profile;
   },
 
-  // Reset password
-  async resetPassword(email: string, newPassword: string): Promise<boolean> {
+  // Resend real Firebase verification email
+  async resendVerificationEmail(): Promise<void> {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Пользовательская сессия не найдена. Пожалуйста, начните регистрацию заново.');
+    }
+    try {
+      await sendEmailVerification(currentUser);
+    } catch (err: any) {
+      throw new Error(mapFirebaseAuthError(err));
+    }
+  },
+
+  // Apply action code if user pasted link/code from email
+  async applyVerificationActionCode(codeOrUrl: string): Promise<UserProfile> {
+    let oobCode = codeOrUrl.trim();
+    // If user pasted the full URL from email
+    if (oobCode.includes('oobCode=')) {
+      try {
+        const parsed = new URL(oobCode);
+        oobCode = parsed.searchParams.get('oobCode') || oobCode;
+      } catch {
+        // fallback regex
+        const match = oobCode.match(/oobCode=([a-zA-Z0-9_\-]+)/);
+        if (match && match[1]) oobCode = match[1];
+      }
+    }
+
+    try {
+      await applyActionCode(auth, oobCode);
+      if (auth.currentUser) {
+        await reload(auth.currentUser);
+        const profile = await workspaceDb.ensureUserInitialized(auth.currentUser);
+        return profile;
+      }
+      throw new Error('Код подтвержден. Пожалуйста, войдите в аккаунт.');
+    } catch (err: any) {
+      throw new Error(mapFirebaseAuthError(err));
+    }
+  },
+
+  // Login with Firebase Authentication
+  async login(email: string, pass: string): Promise<UserProfile> {
     const cleanEmail = email.trim().toLowerCase();
-    const user = await workspaceDb.findUserByEmail(cleanEmail);
+    try {
+      const cred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+      const user = cred.user;
 
-    if (!user) {
-      throw new Error('Пользователь с таким адресом email не найден');
+      // Reload to ensure freshest emailVerified status
+      await reload(user);
+
+      if (!user.emailVerified) {
+        // Automatically trigger a fresh verification email so user can easily verify
+        try {
+          await sendEmailVerification(user);
+        } catch {
+          // ignore rate limits on resend
+        }
+        throw new UnverifiedEmailError(cleanEmail);
+      }
+
+      // Order: Firebase Auth -> UID -> create/ensure document in Firestore -> load workspace
+      const profile = await workspaceDb.ensureUserInitialized(user);
+      return profile;
+    } catch (err: any) {
+      if (err instanceof UnverifiedEmailError) {
+        throw err;
+      }
+      throw new Error(mapFirebaseAuthError(err));
     }
-    if (!newPassword || newPassword.length < 6) {
-      throw new Error('Новый пароль должен содержать минимум 6 символов');
+  },
+
+  // Reset password via Firebase Authentication
+  async resetPassword(email: string): Promise<void> {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      throw new Error('Укажите корректный адрес электронной почты');
     }
-
-    const salt = generateSalt();
-    const passwordHash = await hashPassword(newPassword, salt);
-
-    user.salt = salt;
-    user.passwordHash = passwordHash;
-    await workspaceDb.saveUser(user);
-
-    return true;
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+    } catch (err: any) {
+      throw new Error(mapFirebaseAuthError(err));
+    }
   },
 
   // Update profile
   async updateProfile(uid: string, updates: Partial<UserProfile>): Promise<UserProfile> {
     const updated = await workspaceDb.updateUserProfile(uid, updates);
     if (!updated) {
-      throw new Error('Не удалось обновить профиль');
+      throw new Error('Не удалось обновить профиль в Firestore');
     }
     return updated;
   },
 
-  // Logout
+  // Logout from Firebase
   async logout(): Promise<void> {
     try {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
-    } catch {
-      // ignore
+      await signOut(auth);
+      workspaceDb.ensureCleanLocalAuth();
+    } catch (err: any) {
+      console.warn('Sign out error:', err);
     }
-  },
-
-  // Demo user for testing (optional sandbox without replacing personal registrations)
-  async loginDemoUser(): Promise<UserProfile> {
-    const demoEmail = 'demo@freela.app';
-    let user = await workspaceDb.findUserByEmail(demoEmail);
-
-    if (!user) {
-      const uid = 'usr_demo_freela';
-      const salt = generateSalt();
-      const passwordHash = await hashPassword('demo123', salt);
-      const now = new Date().toISOString();
-
-      const profile: UserProfile = {
-        uid,
-        email: demoEmail,
-        displayName: 'Демо Пользователь',
-        specialization: 'Product & Brand Designer',
-        hourlyRate: 3750,
-        currency: 'RUB',
-        plan: 'pro',
-        status: 'active',
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      user = {
-        uid,
-        email: demoEmail,
-        passwordHash,
-        salt,
-        profile,
-      };
-
-      await workspaceDb.saveUser(user);
-
-      // Import initial demo mock data ONLY for the demo account
-      const {
-        initialClients,
-        initialProjects,
-        initialTasks,
-        initialFinance,
-        initialIdeas,
-        initialContent,
-        initialResults,
-      } = await import('../data/mockData');
-
-      await workspaceDb.saveWorkspace(uid, {
-        clients: initialClients.map((c) => ({ ...c, userId: uid })),
-        projects: initialProjects.map((p) => ({ ...p, userId: uid })),
-        tasks: initialTasks.map((t) => ({ ...t, userId: uid })),
-        finance: initialFinance.map((f) => ({ ...f, userId: uid })),
-        ideas: initialIdeas.map((i) => ({ ...i, userId: uid })),
-        content: initialContent.map((c) => ({ ...c, userId: uid })),
-        results: initialResults.map((r) => ({ ...r, userId: uid })),
-      });
-    }
-
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ uid: user.uid }));
-    return user.profile;
   },
 };

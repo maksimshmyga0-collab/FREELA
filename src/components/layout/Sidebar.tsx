@@ -11,6 +11,7 @@ import {
   Sparkles,
   RotateCcw,
 } from 'lucide-react';
+import { BrandLogo } from '../common/BrandLogo';
 import { useApp } from '../../context/AppContext';
 import { NavSection } from '../../types';
 
@@ -56,25 +57,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobile = false }) => {
 
   return (
     <aside
-      id="freela-sidebar"
+      id="claryfe-sidebar"
       className={`flex flex-col h-full bg-[#0D0F14] text-slate-200 border-r border-white/[0.06] select-none ${
         isMobile ? 'w-full' : 'w-[240px] min-w-[240px]'
       }`}
     >
       {/* Brand Header */}
       <div className="px-5 py-5 border-b border-white/[0.06] flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-white text-slate-950 flex items-center justify-center font-black tracking-tight text-sm shadow-xs">
-            F
-          </div>
-          <div>
-            <div className="text-base font-bold tracking-tight text-white flex items-center gap-1.5">
-              FREELA
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            </div>
-            <p className="text-[10px] text-slate-500 font-medium tracking-wide">Workspace</p>
-          </div>
-        </div>
+        <BrandLogo size="md" subtitle="Workspace" />
       </div>
 
       {/* Navigation Groups */}

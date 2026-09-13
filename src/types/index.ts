@@ -169,6 +169,7 @@ export interface UserProfile {
   status: UserStatus;
   createdAt: string;
   updatedAt: string;
+  emailVerified?: boolean;
   dashboardWidgets?: DashboardWidgetConfig;
   // SaaS preparation fields
   subscription?: {
@@ -182,7 +183,7 @@ export interface UserProfile {
   };
 }
 
-export type AuthScreenMode = 'login' | 'register' | 'forgot_password';
+export type AuthScreenMode = 'login' | 'register' | 'forgot_password' | 'email_verification';
 
 // Boards & Visual Canvas
 export interface Board {

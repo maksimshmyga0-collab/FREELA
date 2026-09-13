@@ -280,12 +280,12 @@ export const initialFinance: FinanceRecord[] = [
 export const initialIdeas: Idea[] = [
   {
     id: 'idea-1',
-    title: 'Сделать серию Reels про FREELA',
+    title: 'Сделать серию Reels про CLARYFE',
     description: 'Показать реальный рабочий день дизайнера без хаоса в тасках и таблицах: как превращать действия в конкретный результат и доход.',
     category: 'Reels',
     status: 'В работе',
     priority: 'Высокий',
-    tags: ['Freelance', 'Workflow', 'Productivity', 'FREELA'],
+    tags: ['Freelance', 'Workflow', 'Productivity', 'CLARYFE'],
     date: '2026-09-01',
     createdAt: '2026-09-01',
   },
@@ -327,11 +327,11 @@ export const initialIdeas: Idea[] = [
 export const initialContent: ContentItem[] = [
   {
     id: 'content-1',
-    title: 'Reels про FREELA №1: Мой день фрилансера',
+    title: 'Reels про CLARYFE №1: Мой день фрилансера',
     type: 'Reels',
     platform: 'Instagram',
     ideaId: 'idea-1',
-    ideaTitle: 'Сделать серию Reels про FREELA',
+    ideaTitle: 'Сделать серию Reels про CLARYFE',
     status: 'Опубликован',
     publishDate: '2026-09-06',
     views: 28400,
@@ -342,11 +342,11 @@ export const initialContent: ContentItem[] = [
   },
   {
     id: 'content-2',
-    title: 'Reels про FREELA №2: Как считать финансы и не выгорать',
+    title: 'Reels про CLARYFE №2: Как считать финансы и не выгорать',
     type: 'Reels',
     platform: 'Instagram',
     ideaId: 'idea-1',
-    ideaTitle: 'Сделать серию Reels про FREELA',
+    ideaTitle: 'Сделать серию Reels про CLARYFE',
     status: 'Готов',
     publishDate: '2026-09-14',
     notes: 'Смонтировано, звук сведен, готово к публикации завтра утром в 10:00.',
@@ -361,7 +361,7 @@ export const initialContent: ContentItem[] = [
     ideaTitle: 'Гайд: Как фрилансеру поднять чек с 30к до 150к',
     status: 'В работе',
     publishDate: '2026-09-17',
-    notes: 'Черновик на 70% готов. Добавить скриншоты интерфейса FREELA.',
+    notes: 'Черновик на 70% готов. Добавить скриншоты интерфейса CLARYFE.',
     createdAt: '2026-09-09',
   },
   {
@@ -381,9 +381,9 @@ export const initialContent: ContentItem[] = [
 export const initialResults: ResultItem[] = [
   {
     id: 'res-1',
-    title: 'Reels про FREELA №1 — конверсия в заказы',
+    title: 'Reels про CLARYFE №1 — конверсия в заказы',
     contentId: 'content-1',
-    contentTitle: 'Reels про FREELA №1: Мой день фрилансера',
+    contentTitle: 'Reels про CLARYFE №1: Мой день фрилансера',
     date: '2026-09-07',
     views: 28400,
     likes: 1240,
